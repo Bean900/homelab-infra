@@ -1,0 +1,60 @@
+# =========================
+# OS / Editor
+# =========================
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.vscode/
+.idea/
+
+# =========================
+# Kubernetes / Talos
+# =========================
+kubeconfig
+kubeconfig.*
+talosconfig
+
+# Talos generated secrets / state
+secrets.yaml
+*.pem
+*.key
+*.crt
+
+# =========================
+# Environment / Secrets
+# =========================
+.env
+.env.*
+!.env.example
+
+# SOPS (falls genutzt)
+*.dec.yaml
+
+# =========================
+# Logs / Temp
+# =========================
+*.log
+tmp/
+temp/
+
+# =========================
+# Terraform
+# =========================
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+
+# =========================
+# Helm
+# =========================
+charts/
+*.tgz
+
+# =========================
+# Backup / Local overrides
+# =========================
+*.bak
+*.backup
+*.local.yaml
