@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: kube-vip-ds
+  namespace: kube-system
+spec:
+  selector:
+    matchLabels:
+      name: kube-vip
+  template:
+    metadata:
+      labels:
+        name: kube-vip
+    spec:
+      hostNetwork: true # Wichtig für Layer 2 ARP
+      containers:
+        - name: kube-vip
+          image: ghcr.io/kube-vip/kube-vip:v0.8.2
+          imagePullPolicy: Always
+          securityContext:
+            capabilities:
+              add: ["NET_ADMIN", "NET_RAW"]
+          env:
+            - name: vip_arp
+              value: "true"
+            - name: lb_enable
+              value: "true" # Aktiviert den LoadBalancer-Modus
+            - name: lb_port
+              value: "6443"
+            - name: vip_interface
+              value: "eth0" # Selbes Interface wie bei Talos

@@ -1,0 +1,9 @@
+machine:
+  network:
+    interfaces:
+      - interface: eth0 # Passe das an deinen VM-Netzwerknamen an
+        vip:
+          ip: 192.168.168.9 # Die Control-Plane VIP
+cluster:
+  extraManifests:
+    - https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml

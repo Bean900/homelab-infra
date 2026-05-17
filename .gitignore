@@ -13,13 +13,17 @@ Thumbs.db
 # =========================
 kubeconfig
 kubeconfig.*
-talosconfig
+talosconfig.yaml
+!talosconfig.enc.yaml
 
 # Talos generated secrets / state
 secrets.yaml
 *.pem
 *.key
 *.crt
+
+bootstrap/talos/clusterconfig/*.yaml
+!bootstrap/talos/clusterconfig/*.enc.yaml
 
 # =========================
 # Environment / Secrets
