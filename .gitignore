@@ -22,8 +22,8 @@ secrets.yaml
 *.key
 *.crt
 
-bootstrap/talos/clusterconfig/*.yaml
-!bootstrap/talos/clusterconfig/*.enc.yaml
+talos/clusterconfig/*.yaml
+!talos/clusterconfig/*.enc.yaml
 
 # =========================
 # Environment / Secrets
