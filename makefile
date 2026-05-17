@@ -42,7 +42,7 @@ kubeconfig: ## Downloads the kubeconfig for kubectl
 
 gitops-init: ## Applies the ArgoCD root app to start the GitOps process
 	@echo "Starting GitOps sync via ArgoCD..."
-	KUBECONFIG=talos/kubeconfig kubectl apply -f cluster/root.yaml
+	kubectl apply -f cluster/root.yaml --kubeconfig talos/kubeconfig
 
 init-security: ## Generates a new Age key in the default SOPS directory and configures .sops.yaml
 	@if [ -f $(SOPS_AGE_KEY) ]; then \
