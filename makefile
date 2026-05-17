@@ -1,6 +1,6 @@
 # Adjust these variables for your cluster
-VIP = 192.168.178.9
-NODE_1 = 192.168.178.10
+VIP = 192.168.178.50
+NODE_1 = 192.168.178.54
 NODE_2 = 192.168.178.11
 NODE_3 = 192.168.178.12
 BOOTSTRAP_NODE = $(NODE_1)
@@ -21,7 +21,7 @@ decrypt: ## Decrypts Talos configurations (requires SOPS & your private Age key)
 
 encrypt: ## Merges base config with patches and encrypts the result
 	@echo "Merging configuration with patches and encrypting..."
-	rm talos/clusterconfig/controlplane.base.yaml
+	rm -f talos/clusterconfig/controlplane.base.yaml
 	talosctl machineconfig patch talos/clusterconfig/controlplane.yaml --patch @talos/patches/controlplane.base.yaml > talos/clusterconfig/controlplane.base.yaml
 	sops --encrypt talos/clusterconfig/controlplane.base.yaml > talos/clusterconfig/controlplane.base.enc.yaml
 	sops --encrypt talos/talosconfig.yaml > talos/talosconfig.enc.yaml
@@ -33,11 +33,11 @@ apply-config: decrypt ## Pushes the configuration to all 3 VMs (uses --insecure 
 
 bootstrap: ## Bootstraps the cluster initially (run ONLY ONCE!)
 	@echo "Starting Talos bootstrap on $(BOOTSTRAP_NODE)..."
-	talosctl bootstrap --nodes $(BOOTSTRAP_NODE) --talosconfig talos/talosconfig
+	talosctl bootstrap --nodes $(BOOTSTRAP_NODE) --talosconfig talos/talosconfig.yaml
 
 kubeconfig: ## Downloads the kubeconfig for kubectl
 	@echo "Downloading kubeconfig..."
-	talosctl kubeconfig ./talos/kubeconfig --nodes $(VIP) --talosconfig talos/talosconfig
+	talosctl kubeconfig ./talos/kubeconfig --nodes $(VIP) --talosconfig talos/talosconfig.yaml
 	@echo "Export it using: export KUBECONFIG=\$$(pwd)/talos/kubeconfig"
 
 gitops-init: ## Applies the ArgoCD root app to start the GitOps process
