@@ -1,4 +1,6 @@
 creation_rules:
   - path_regex: \.yaml$
     encrypted_regex: ^(data|stringData|crt|key|secret|secretboxEncryptionSecret|id|token)$
-    age: 'age14ah2v3wwm93apfs968sfps39n4v9hxhwucha4p8n26gjfnfqqpfsm9h9w9'
+    key_groups:
+      - age:
+          - "age1r9dj05axagksw2xxryta4w4q6xqqtahdqsfrqxzrvtnjcjxd0fxqueduun"

@@ -5,6 +5,9 @@ NODE_2 = 192.168.178.11
 NODE_3 = 192.168.178.12
 BOOTSTRAP_NODE = $(NODE_1)
 
+SOPS_AGE_DIR = $(HOME)/.config/sops/age
+SOPS_AGE_KEY = $(SOPS_AGE_DIR)/keys.txt
+
 .PHONY: help decrypt encrypt apply-config bootstrap kubeconfig gitops-init clean
 
 help: ## Displays this help message
@@ -13,7 +16,7 @@ help: ## Displays this help message
 decrypt: ## Decrypts Talos configurations (requires SOPS & your private Age key)
 	@echo "Decrypting Talos configurations..."
 	sops --decrypt talos/clusterconfig/controlplane.base.enc.yaml > talos/clusterconfig/controlplane.base.yaml
-	sops --decrypt talos/talosconfig.enc.yaml > talos/talosconfig
+	sops --decrypt talos/talosconfig.enc.yaml > talos/talosconfig.yaml
 	@echo "Done! (Unencrypted files are ignored by .gitignore)"
 
 encrypt: ## Merges base config with patches and encrypts the result
@@ -21,7 +24,7 @@ encrypt: ## Merges base config with patches and encrypts the result
 	rm talos/clusterconfig/controlplane.base.yaml
 	talosctl machineconfig patch talos/clusterconfig/controlplane.yaml --patch @talos/patches/controlplane.base.yaml > talos/clusterconfig/controlplane.base.yaml
 	sops --encrypt talos/clusterconfig/controlplane.base.yaml > talos/clusterconfig/controlplane.base.enc.yaml
-	sops --encrypt talos/talosconfig > talos/talosconfig.enc.yaml
+	sops --encrypt talos/talosconfig.yaml > talos/talosconfig.enc.yaml
 	@echo "Production files successfully encrypted!"
 
 apply-config: decrypt ## Pushes the configuration to all 3 VMs (uses --insecure for fresh nodes)
@@ -41,7 +44,27 @@ gitops-init: ## Applies the ArgoCD root app to start the GitOps process
 	@echo "Starting GitOps sync via ArgoCD..."
 	KUBECONFIG=talos/kubeconfig kubectl apply -f cluster/root.yaml
 
+init-security: ## Generates a new Age key in the default SOPS directory and configures .sops.yaml
+	@if [ -f $(SOPS_AGE_KEY) ]; then \
+		echo "\033[31mError: $(SOPS_AGE_KEY) already exists! Move or delete it manually if you want to start fresh.\033[0m"; \
+		exit 1; \
+	fi
+	@echo "Creating SOPS configuration directory at $(SOPS_AGE_DIR)..."
+	@mkdir -p $(SOPS_AGE_DIR)
+	@echo "Generating fresh Age key-pair into $(SOPS_AGE_KEY)..."
+	@age-keygen -o $(SOPS_AGE_KEY)
+	@PUBKEY=$$(grep "public key:" $(SOPS_AGE_KEY) | awk '{print $$4}'); \
+	echo "Public key extracted: $$PUBKEY"; \
+	echo "Creating .sops.yaml file..."; \
+	echo "creation_rules:" > .sops.yaml; \
+	echo "  - path_regex: \.yaml$$" >> .sops.yaml; \
+	echo "    encrypted_regex: ^(data|stringData|crt|key|secret|secretboxEncryptionSecret|id|token)$$" >> .sops.yaml; \
+	echo "    key_groups:" >> .sops.yaml; \
+	echo "      - age:" >> .sops.yaml; \
+	echo "          - \"$$PUBKEY\"" >> .sops.yaml; \
+	echo "\033[32mSuccess! Key stored in $(SOPS_AGE_KEY) and .sops.yaml is configured.\033[0m"
+
 clean: ## Deletes local, unencrypted sensitive files
 	@echo "Cleaning up unencrypted files..."
-	rm -f talos/controlplane.yaml talos/talosconfig talos/kubeconfig
+	rm -f talos/clusterconfig/controlplane.yaml talos/clusterconfig/talosconfig.yaml talos/clusterconfig/kubeconfig
 	@echo "Security cleanup complete!"
