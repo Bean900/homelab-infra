@@ -1,0 +1,18 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kube-vip
+  namespace: gitops # Wichtig: Muss im von der ConfigMap erlaubten Namespace liegen
+spec:
+  project: default
+  source:
+    repoURL: 'https://github.com/Bean900/homelab-infra.git'
+    path: apps/kube-vip # Zeigt auf die eigentlichen YAMLs
+    targetRevision: HEAD
+  destination:
+    server: 'https://kubernetes.default.svc'
+    namespace: kube-system # Kube-Vip gehört i.d.R. ins kube-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
