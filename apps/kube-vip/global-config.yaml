@@ -4,4 +4,4 @@ metadata:
   name: kubevip-configmap
   namespace: kube-system
 data:
-  range-global: "192.168.168.50-192.168.168.60" # IPs für AdGuard & Co.
+  range-global: "192.168.168.60-192.168.168.80"

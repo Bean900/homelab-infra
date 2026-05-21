@@ -12,7 +12,7 @@ spec:
       labels:
         name: kube-vip
     spec:
-      hostNetwork: true # Wichtig für Layer 2 ARP
+      hostNetwork: true
       containers:
         - name: kube-vip
           image: ghcr.io/kube-vip/kube-vip:v0.8.2
@@ -24,8 +24,8 @@ spec:
             - name: vip_arp
               value: "true"
             - name: lb_enable
-              value: "true" # Aktiviert den LoadBalancer-Modus
+              value: "true"
             - name: lb_port
               value: "6443"
             - name: vip_interface
-              value: "eth0" # Selbes Interface wie bei Talos
+              value: "eth0"

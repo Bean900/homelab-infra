@@ -1,2 +1,0 @@
-curl -L -o install.yaml \
-  https://raw.githubusercontent.com/argoproj/argo-cd/v3.4.2/manifests/install.yaml
