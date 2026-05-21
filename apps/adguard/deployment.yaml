@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: adguard
-  namespace: adguard
+  namespace: network
   labels:
     app: adguard
 spec:
@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: adguardhome
-          image: adguard/adguardhome:latest
+          image: adguard/adguardhome:v0.107.76
           ports:
             - containerPort: 53
               protocol: UDP
