@@ -2,19 +2,19 @@ apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: adguard
-  namespace: network  
+  namespace: argocd           
 spec:
   project: default
   source:
     repoURL: 'https://github.com/Bean900/homelab-infra.git'
-    path: apps/network
+    path: apps/adguard        
     targetRevision: HEAD
   destination:
     server: 'https://kubernetes.default.svc'
-    namespace: network  
+    namespace: network
   syncPolicy:
     automated:
       prune: true
       selfHeal: true
     syncOptions:
-      - CreateNamespace=true  
+      - CreateNamespace=true

@@ -7,6 +7,8 @@ metadata:
     app: adguard
 spec:
   replicas: 1
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: adguard
@@ -19,9 +21,34 @@ spec:
         - name: adguardhome
           image: adguard/adguardhome:v0.107.76
           ports:
-            - containerPort: 53
+            - name: dns-udp
+              containerPort: 53
               protocol: UDP
-            - containerPort: 53
+            - name: dns-tcp
+              containerPort: 53
               protocol: TCP
-            - containerPort: 80
+            - name: web
+              containerPort: 80
               protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /control/status
+              port: 80
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            failureThreshold: 3
+            successThreshold: 1
+          livenessProbe:
+            httpGet:
+              path: /control/status
+              port: 80
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
