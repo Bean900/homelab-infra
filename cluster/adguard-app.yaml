@@ -7,7 +7,7 @@ spec:
   project: default
   source:
     repoURL: 'https://github.com/Bean900/homelab-infra.git'
-    path: apps/adguard        
+    path: apps/network/adguard        
     targetRevision: HEAD
   destination:
     server: 'https://kubernetes.default.svc'
