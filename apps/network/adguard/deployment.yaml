@@ -90,12 +90,35 @@ spec:
           claimName: adguard-work-pvc
 ---
 apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: adguard-conf-pv
+spec:
+  capacity:
+    storage: 50Mi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: manual  
+  hostPath:
+    path: /var/adguard/conf
+    type: DirectoryOrCreate
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: kubernetes.io/hostname
+          operator: In
+          values:
+          - basepc 
+---
+apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: adguard-conf-pvc
   namespace: network
 spec:
-  storageClassName: ""
+  storageClassName: manual
   accessModes:
     - ReadWriteOnce
   resources:
@@ -104,12 +127,35 @@ spec:
 
 ---
 apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: adguard-work-pv
+spec:
+  capacity:
+    storage: 1Gi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: manual
+  hostPath:
+    path: /var/var/adguard/work
+    type: DirectoryOrCreate
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: kubernetes.io/hostname
+          operator: In
+          values:
+          - basepc 
+---
+apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: adguard-work-pvc
   namespace: network
 spec:
-  storageClassName: ""
+  storageClassName: manual
   accessModes:
     - ReadWriteOnce
   resources:
