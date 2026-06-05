@@ -13,10 +13,13 @@ spec:
         name: kube-vip
     spec:
       hostNetwork: true
+      serviceAccountName: kube-vip  
       containers:
         - name: kube-vip
           image: ghcr.io/kube-vip/kube-vip:v0.8.2
           imagePullPolicy: Always
+          args:
+            - manager 
           securityContext:
             capabilities:
               add: ["NET_ADMIN", "NET_RAW"]
@@ -28,4 +31,10 @@ spec:
             - name: lb_port
               value: "6443"
             - name: vip_interface
-              value: "eth0"
+              value: "eth0"  
+            - name: svc_enable
+              value: "true" 
+            - name: vip_nodename
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
