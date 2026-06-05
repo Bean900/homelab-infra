@@ -7,7 +7,7 @@ spec:
   project: default
   source:
     repoURL: 'https://github.com/Bean900/homelab-infra.git'
-    path: apps/kube-vip
+    path: apps/network/kube-vip
     targetRevision: HEAD
   destination:
     server: 'https://kubernetes.default.svc'

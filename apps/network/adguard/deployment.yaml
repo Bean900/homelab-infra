@@ -5,7 +5,7 @@ metadata:
   namespace: network
 spec:
   selector:
-    app.kubernetes.io/name: adguard
+    app: adguard
   ports:
     - name: web
       protocol: TCP
@@ -19,7 +19,7 @@ metadata:
   name: adguard
   namespace: network
   labels:
-    app.kubernetes.io/name: adguard
+    app: adguard
 spec:
   selector:
     matchLabels:
@@ -37,43 +37,43 @@ spec:
       - name: adguard
         image: adguard/adguardhome:v0.107.76
         ports:
-        - containerPort: 53 # DNS
-          name: dns
+        - containerPort: 53 
+          name: dns-udp  
           protocol: UDP
-        - containerPort: 53 # DNS
-          name: dns
+        - containerPort: 53 
+          name: dns-tcp 
           protocol: TCP
-        - containerPort: 67 # DHCP
-          name: dhcp
+        - containerPort: 67 
+          name: dhcp-srv  
           protocol: UDP
-        - containerPort: 68 # DHCP
-          name: dhcp
+        - containerPort: 68 
+          name: dhcp-cli 
           protocol: UDP
-        - containerPort: 80 # AdGuard Home Web Interface
+        - containerPort: 80 
           name: web
           protocol: TCP
-        - containerPort: 443 # AdGuard Home Web Interface (HTTPS)
-          name: web-https
+        - containerPort: 443 
+          name: web-https-tcp  
           protocol: TCP
-        - containerPort: 443 # AdGuard Home Web Interface (HTTPS)
-          name: web-https
+        - containerPort: 443 
+          name: web-https-udp  
           protocol: UDP
-        - containerPort: 784 # DNS over QUIC
+        - containerPort: 784 
           name: dns-quic
           protocol: UDP
-        - containerPort: 853 # DNS over TLS
+        - containerPort: 853 
           name: dns-tls
           protocol: UDP
-        - containerPort: 3000 # AdGuard Home Web Interface (alternative)
+        - containerPort: 3000 
           name: web-alt
           protocol: TCP
-        - containerPort: 5443 # DNSCrypt
-          name: dnscrypt
+        - containerPort: 5443 
+          name: dnscrypt-udp  
           protocol: UDP
-        - containerPort: 5443 # DNSCrypt
-          name: dnscrypt
+        - containerPort: 5443 
+          name: dnscrypt-tcp  
           protocol: TCP
-        - containerPort: 8853 # DNS over QUIC
+        - containerPort: 8853 
           name: dns-quic-2
           protocol: UDP
         volumeMounts:
