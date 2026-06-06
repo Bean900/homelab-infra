@@ -1,0 +1,72 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: adguard
+spec:
+  selector:
+    matchLabels:
+      app: adguard
+  serviceName: "adguard"
+  replicas: 1
+  minReadySeconds: 30
+  template:
+    metadata:
+      labels:
+        app: adguard
+    spec:
+      terminationGracePeriodSeconds: 10
+      containers:
+      - name: adguard
+        image: adguard/adguardhome:v0.107.76
+        ports:
+        - containerPort: 53 
+          name: dns-udp  
+          protocol: UDP
+        - containerPort: 53 
+          name: dns-tcp 
+          protocol: TCP
+        - containerPort: 67 
+          name: dhcp-srv  
+          protocol: UDP
+        - containerPort: 68 
+          name: dhcp-cli 
+          protocol: UDP
+        - containerPort: 80 
+          name: web
+          protocol: TCP
+        - containerPort: 443 
+          name: web-https-tcp  
+          protocol: TCP
+        - containerPort: 443 
+          name: web-https-udp  
+          protocol: UDP
+        - containerPort: 784 
+          name: dns-quic
+          protocol: UDP
+        - containerPort: 853 
+          name: dns-tls
+          protocol: UDP
+        - containerPort: 3000 
+          name: web-alt
+          protocol: TCP
+        - containerPort: 5443 
+          name: dnscrypt-udp  
+          protocol: UDP
+        - containerPort: 5443 
+          name: dnscrypt-tcp  
+          protocol: TCP
+        - containerPort: 8853 
+          name: dns-quic-2
+          protocol: UDP
+        volumeMounts:
+        - name: adguard-work
+          mountPath: /opt/adguardhome/work
+        - name: adguard-conf
+          mountPath: /opt/adguardhome/conf
+      volumes:
+      - name: adguard-conf
+        persistentVolumeClaim:
+          claimName: adguard-conf-pvc
+      - name: adguard-work
+        persistentVolumeClaim:
+          claimName: adguard-work-pvc

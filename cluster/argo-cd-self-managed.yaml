@@ -1,0 +1,18 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: argo-cd-self-managed
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: 'https://github.com/Bean900/homelab-infra.git' 
+    path: cluster/argo-cd                                
+    targetRevision: HEAD
+  destination:
+    server: 'https://kubernetes.default.svc' 
+    namespace: argocd 
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
