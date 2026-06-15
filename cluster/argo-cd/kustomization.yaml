@@ -1,10 +1,7 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
-# Ziel-Namespace für die Installation
 namespace: argocd
 
 resources:
-  # HIER WIRD DIE VERSION GESTEUERT! 
-  # Wenn du dieses Tag im Git änderst, aktualisiert sich Argo CD selbst.
-  - https://github.com/argoproj/argo-cd/blob/v3.4.3/manifests/install.yaml
+  - https://raw.githubusercontent.com/argoproj/argo-cd/v3.4.3/manifests/install.yaml
