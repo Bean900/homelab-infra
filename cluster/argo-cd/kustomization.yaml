@@ -7,4 +7,4 @@ namespace: argocd
 resources:
   # HIER WIRD DIE VERSION GESTEUERT! 
   # Wenn du dieses Tag im Git änderst, aktualisiert sich Argo CD selbst.
-  - https://github.com/argoproj/argo-cd//manifests/install.yaml?ref=v3.4.2
+  - https://github.com/argoproj/argo-cd/blob/v3.4.3/manifests/install.yaml
