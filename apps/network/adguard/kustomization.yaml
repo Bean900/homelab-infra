@@ -5,14 +5,16 @@ kind: Kustomization
 namespace: network
 
 # Fügt allen Ressourcen und Selektoren automatisch das Label 'app: adguard' hinzu
-commonLabels:
-  app: adguard
 
 resources:
-  - namespace.yaml
-  - service.yaml
-  - statefulset.yaml
-  - pvcs.yaml
+- namespace.yaml
+- service.yaml
+- statefulset.yaml
+- pvcs.yaml
 
 generators:
-  - secret.enc.yaml
+- secret.enc.yaml
+labels:
+- includeSelectors: true
+  pairs:
+    app: adguard
