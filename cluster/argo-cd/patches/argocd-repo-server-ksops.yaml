@@ -14,7 +14,7 @@ spec:
       initContainers:
         - name: install-ksops
           image: viaductoss/ksops:v4.5.1
-          command: ["/usr/local/bin/ksops", "install", "/custom-tools"]
+          command: ["/usr/local/bin/ksops", "install", "/custom-tools/viaduct.ai/v1/ksops"]
           volumeMounts:
             - name: custom-tools
               mountPath: /custom-tools
@@ -31,8 +31,7 @@ spec:
               value: "true"
           volumeMounts:
             - name: custom-tools
-              mountPath: /home/argocd/.config/kustomize/plugin/viaduct.ai/v1/ksops
-              subPath: ksops
+              mountPath: /home/argocd/.config/kustomize/plugin
             - name: sops-age
               mountPath: /home/argocd/sops-age
               readOnly: true
