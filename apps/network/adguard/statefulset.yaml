@@ -15,6 +15,25 @@ spec:
         app: adguard
     spec:
       terminationGracePeriodSeconds: 10
+      # --- NEU: Init-Container zum Kopieren der Konfiguration ---
+      initContainers:
+      - name: copy-config
+        image: busybox:1.36
+        command:
+        - sh
+        - -c
+        - |
+          echo "Kopiere AdGuardHome.yaml aus dem GitOps-Secret in das PVC..."
+          cp /tmp/secret/AdGuardHome.yaml /opt/adguardhome/conf/AdGuardHome.yaml
+          
+          # WICHTIG: AdGuard benötigt Schreibrechte auf diese Datei!
+          chmod 644 /opt/adguardhome/conf/AdGuardHome.yaml
+        volumeMounts:
+        - name: adguard-secret-volume
+          mountPath: /tmp/secret
+        - name: adguard-conf
+          mountPath: /opt/adguardhome/conf
+      # ----------------------------------------------------------
       containers:
       - name: adguard
         image: adguard/adguardhome:v0.107.76
@@ -70,3 +89,6 @@ spec:
       - name: adguard-work
         persistentVolumeClaim:
           claimName: adguard-work-pvc
+      - name: adguard-secret-volume
+        secret:
+          secretName: adguard-secret
