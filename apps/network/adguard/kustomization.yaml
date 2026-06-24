@@ -1,10 +1,7 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
-# Kustomize injiziert diesen Namespace automatisch in alle Ressourcen (außer Cluster-weiten Objekten wie PVs)
 namespace: network
-
-# Fügt allen Ressourcen und Selektoren automatisch das Label 'app: adguard' hinzu
 
 resources:
 - namespace.yaml
@@ -13,7 +10,8 @@ resources:
 - pvcs.yaml
 
 generators:
-- secret.enc.yaml
+- secret-generator.yaml     
+
 labels:
 - includeSelectors: true
   pairs:
