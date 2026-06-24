@@ -14,9 +14,7 @@ spec:
       initContainers:
         - name: install-ksops
           image: viaductoss/ksops:v4.5.1
-          command: ["/bin/sh", "-c"]
-          args:
-            - cp /usr/local/bin/ksops /custom-tools/ksops && chmod +x /custom-tools/ksops
+          args: ["/custom-tools"]
           volumeMounts:
             - name: custom-tools
               mountPath: /custom-tools
