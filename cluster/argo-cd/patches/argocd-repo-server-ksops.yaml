@@ -20,13 +20,19 @@ spec:
               mountPath: /custom-tools
       containers:
         - name: argocd-repo-server
+          env:
+            - name: SOPS_AGE_KEY_FILE
+              value: /home/argocd/sops-age/keys.txt
+            - name: XDG_CONFIG_HOME
+              value: /home/argocd/.config
+            - name: KUSTOMIZE_PLUGIN_HOME
+              value: /home/argocd/.config/kustomize/plugin
+            - name: KUSTOMIZE_ENABLE_ALPHA_PLUGINS
+              value: "true"
           volumeMounts:
             - name: custom-tools
-              mountPath: /usr/local/bin/ksops
+              mountPath: /home/argocd/.config/kustomize/plugin/viaduct.ai/v1/ksops
               subPath: ksops
             - name: sops-age
               mountPath: /home/argocd/sops-age
               readOnly: true
-          env:
-            - name: SOPS_AGE_KEY_FILE
-              value: /home/argocd/sops-age/keys.txt
