@@ -1,0 +1,7 @@
+apiVersion: viaduct.ai/v1
+kind: KSOPS
+metadata:
+  name: traefik-auth-generator
+  namespace: traefik
+files:
+  - secret-traefik-auth.enc.yaml

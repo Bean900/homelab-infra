@@ -1,3 +1,5 @@
+SHELL := /bin/bash
+
 # Adjust these variables for your cluster
 VIP = 192.168.178.50
 NODE_1 = 192.168.178.29
@@ -9,7 +11,7 @@ SOPS_AGE_DIR = $(HOME)/.config/sops/age
 SOPS_AGE_KEY = $(SOPS_AGE_DIR)/keys.txt
 
 # Aktualisiert um init-security und gitops-init sicherzustellen
-.PHONY: help decrypt encrypt apply-config bootstrap kubeconfig gitops-init init-security clean
+.PHONY: help decrypt encrypt apply-config bootstrap kubeconfig gitops-init init-security traefik-secret clean
 
 help: ## Displays this help message
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
@@ -84,6 +86,38 @@ init-security: ## Generates a new Age key in the default SOPS directory and conf
 	echo "      - age:" >> .sops.yaml; \
 	echo "          - \"$$PUBKEY\"" >> .sops.yaml; \
 	echo "\033[32mSuccess! Key stored in $(SOPS_AGE_KEY) and .sops.yaml is configured.\033[0m"
+
+traefik-secret:
+	@# 1. Abhängigkeiten prüfen
+	@command -v htpasswd >/dev/null 2>&1 || { echo "❌ Fehler: 'htpasswd' (apache2-utils) ist nicht installiert."; exit 1; }
+	@command -v sops >/dev/null 2>&1 || { echo "❌ Fehler: 'sops' CLI ist nicht installiert."; exit 1; }
+	
+	@# 2. Zielverzeichnis sicherstellen
+	@mkdir -p platform/traefik
+	
+	@# 3. Benutzereingaben abfragen (Funktioniert jetzt dank SHELL := /bin/bash)
+	@read -p "Gewünschten Benutzernamen eingeben: " UNAME; \
+	read -s -p "Gewünschtes Passwort eingeben: " PWD; echo ""; \
+	\
+	if [ -z "$$UNAME" ] || [ -z "$$PWD" ]; then \
+		echo "❌ Fehler: Benutzername und Passwort dürfen nicht leer sein."; \
+		exit 1; \
+	fi; \
+	\
+	HASH=$$(htpasswd -Bnb "$$UNAME" "$$PWD" | tr -d '\n\r'); \
+	TMPFILE=$$(mktemp /tmp/traefik-secret.XXXXXX.yaml); \
+	\
+	trap 'rm -f "$$TMPFILE"' EXIT; \
+	\
+	printf "apiVersion: v1\nkind: Secret\nmetadata:\n  name: traefik-auth\n  namespace: traefik\ntype: Opaque\nstringData:\n  users: |\n    %s\n" "$$HASH" > "$$TMPFILE"; \
+	\
+	if sops --encrypt "$$TMPFILE" > platform/traefik/secret-traefik-auth.enc.yaml; then \
+		echo "✅ Secret erfolgreich verschlüsselt und abgelegt unter:"; \
+		echo "   platform/traefik/secret-traefik-auth.enc.yaml"; \
+	else \
+		echo "❌ Fehler bei der SOPS-Verschlüsselung."; \
+		exit 1; \
+	fi
 
 clean: ## Deletes local, unencrypted sensitive files
 	@echo "Cleaning up unencrypted files..."
