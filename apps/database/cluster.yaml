@@ -1,0 +1,44 @@
+# apps/database/cluster.yaml
+apiVersion: postgresql.k8s.enterprisedb.io/v1
+kind: Cluster
+metadata:
+  name: main-pg-cluster
+  namespace: database
+spec:
+  instances: 3  
+  bootstrap:
+    initdb:
+      database: main_db
+      owner: appuser
+      secret:
+        name: cnpg-app-user
+      postInitApplicationSQLRefs:
+        configMapRefs:
+          - name: pg-init-scripts
+            key: setup-roles.sql
+
+  managed:
+    roles:
+      - name: readonly_user
+        login: true
+        passwordSecret:
+          name: cnpg-readonly-secret
+
+  backup:
+    barmanObjectStore:
+      destinationPath: s3://dein-backup-bucket/cnpg/
+      endpointURL: https://s3.eu-central-1.amazonaws.com  
+      s3Credentials:
+        accessKeyId:
+          name: cnpg-backup-creds
+          key: ACCESS_KEY_ID
+        secretAccessKey:
+          name: cnpg-backup-creds
+          key: ACCESS_SECRET_KEY
+      wal:
+        compression: gzip
+        maxParallel: 8
+
+  storage:
+    size: 20Gi
+    storageClass: local-path  

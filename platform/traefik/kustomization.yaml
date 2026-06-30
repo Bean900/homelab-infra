@@ -4,6 +4,13 @@ kind: Kustomization
 namespace: traefik
 
 resources:
+  - namespace.yaml
+  - https://raw.githubusercontent.com/traefik/traefik/v3.7/docs/content/reference/dynamic-configuration/kubernetes-crd-definition-v1.yml
+  - https://raw.githubusercontent.com/traefik/traefik/v3.7/docs/content/reference/dynamic-configuration/kubernetes-crd-rbac.yml
+  - serviceaccount.yaml
+  - ingressclass.yaml
+  - deployment.yaml
+  - service.yaml
   - middleware.yaml
 
 generators:
