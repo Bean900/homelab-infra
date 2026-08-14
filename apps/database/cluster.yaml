@@ -1,44 +1,47 @@
-# apps/database/cluster.yaml
-apiVersion: postgresql.k8s.enterprisedb.io/v1
+apiVersion: postgresql.cnpg.io/v1
 kind: Cluster
 metadata:
   name: main-pg-cluster
   namespace: database
 spec:
-  instances: 3  
+  # Raise this only after Longhorn replicas are distributed across three nodes.
+  instances: 1
+  imageName: ghcr.io/cloudnative-pg/postgresql:17.6
+  enableSuperuserAccess: false
+  enablePDB: true
   bootstrap:
     initdb:
-      database: main_db
-      owner: appuser
+      database: platform
+      owner: platform_owner
       secret:
-        name: cnpg-app-user
-      postInitApplicationSQLRefs:
-        configMapRefs:
-          - name: pg-init-scripts
-            key: setup-roles.sql
-
-  managed:
-    roles:
-      - name: readonly_user
-        login: true
-        passwordSecret:
-          name: cnpg-readonly-secret
-
-  backup:
-    barmanObjectStore:
-      destinationPath: s3://dein-backup-bucket/cnpg/
-      endpointURL: https://s3.eu-central-1.amazonaws.com  
-      s3Credentials:
-        accessKeyId:
-          name: cnpg-backup-creds
-          key: ACCESS_KEY_ID
-        secretAccessKey:
-          name: cnpg-backup-creds
-          key: ACCESS_SECRET_KEY
-      wal:
-        compression: gzip
-        maxParallel: 8
-
+        name: cnpg-platform-owner
+      dataChecksums: true
   storage:
     size: 20Gi
-    storageClass: local-path  
+    storageClass: longhorn-single
+  managed:
+    roles:
+      - name: keycloak
+        ensure: present
+        comment: Production login role for Keycloak only
+        login: true
+        superuser: false
+        createdb: false
+        createrole: false
+        replication: false
+        bypassRLS: false
+        connectionLimit: 50
+        passwordSecret:
+          name: keycloak-db-credentials
+  plugins:
+    - name: barman-cloud.cloudnative-pg.io
+      isWALArchiver: true
+      parameters:
+        barmanObjectName: seaweedfs-backups
+        serverName: main-pg-cluster
+  resources:
+    requests:
+      cpu: "500m"
+      memory: 1Gi
+    limits:
+      memory: 2Gi

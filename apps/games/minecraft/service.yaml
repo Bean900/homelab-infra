@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: minecraft
+  annotations:
+    kube-vip.io/loadbalancerIPs: "192.168.178.64"
+spec:
+  type: LoadBalancer
+  selector:
+    app: minecraft
+  ports:
+    - name: minecraft-java
+      protocol: TCP
+      port: 25565
+      targetPort: minecraft-java

@@ -1,0 +1,12 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: keycloak
+  namespace: database
+spec:
+  name: keycloak
+  owner: keycloak
+  cluster:
+    name: main-pg-cluster
+  # Deleting the GitOps resource must never delete identity data.
+  databaseReclaimPolicy: retain

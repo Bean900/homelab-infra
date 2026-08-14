@@ -1,0 +1,73 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: minecraft
+spec:
+  serviceName: minecraft
+  replicas: 1
+  selector:
+    matchLabels:
+      app: minecraft
+  template:
+    metadata:
+      labels:
+        app: minecraft
+    spec:
+      terminationGracePeriodSeconds: 120
+      initContainers:
+        - name: initialize-data-volume
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - chown -R 1000:1000 /data
+          volumeMounts:
+            - name: minecraft-data
+              mountPath: /data
+      containers:
+        - name: minecraft
+          image: itzg/minecraft-server:java21
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: minecraft-java
+              containerPort: 25565
+              protocol: TCP
+          env:
+            - name: EULA
+              value: "TRUE"
+            - name: TYPE
+              value: VANILLA
+            - name: VERSION
+              value: "1.21.8"
+            - name: MEMORY
+              value: 2G
+            - name: TZ
+              value: Europe/Berlin
+            - name: ENABLE_RCON
+              value: "false"
+          resources:
+            requests:
+              cpu: 500m
+              memory: 2Gi
+            limits:
+              cpu: "2"
+              memory: 3Gi
+          readinessProbe:
+            tcpSocket:
+              port: minecraft-java
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            failureThreshold: 18
+          livenessProbe:
+            tcpSocket:
+              port: minecraft-java
+            initialDelaySeconds: 180
+            periodSeconds: 20
+            failureThreshold: 6
+          volumeMounts:
+            - name: minecraft-data
+              mountPath: /data
+      volumes:
+        - name: minecraft-data
+          persistentVolumeClaim:
+            claimName: minecraft-data

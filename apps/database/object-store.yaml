@@ -1,0 +1,25 @@
+apiVersion: barmancloud.cnpg.io/v1
+kind: ObjectStore
+metadata:
+  name: seaweedfs-backups
+  namespace: database
+spec:
+  retentionPolicy: 30d
+  configuration:
+    destinationPath: s3://REPLACE_WITH_SEAWEEDFS_BUCKET/cnpg/
+    endpointURL: https://REPLACE_WITH_SEAWEEDFS_S3_HOST:8333
+    s3Credentials:
+      accessKeyId:
+        name: cnpg-backup-credentials
+        key: ACCESS_KEY_ID
+      secretAccessKey:
+        name: cnpg-backup-credentials
+        key: ACCESS_SECRET_KEY
+      region:
+        name: cnpg-backup-credentials
+        key: REGION
+    data:
+      compression: gzip
+    wal:
+      compression: gzip
+      maxParallel: 4
