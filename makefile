@@ -1,8 +1,8 @@
 SHELL := /bin/bash
 
 # Adjust these variables for your cluster
-VIP = 192.168.178.50
-NODE_1 = 192.168.178.29
+VIP = 192.168.178.100
+NODE_1 = 192.168.178.101
 NODE_2 = 192.168.178.11
 NODE_3 = 192.168.178.12
 BOOTSTRAP_NODE = $(NODE_1)
