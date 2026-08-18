@@ -15,6 +15,15 @@ spec:
         - name: install-ksops
           image: viaductoss/ksops:v4.5.1
           command: ["/usr/local/bin/ksops", "install", "/custom-tools"]
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 999
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
           volumeMounts:
             - name: custom-tools
               mountPath: /custom-tools
