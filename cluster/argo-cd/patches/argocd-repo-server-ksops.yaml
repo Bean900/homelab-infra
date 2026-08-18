@@ -30,6 +30,8 @@ spec:
       containers:
         - name: argocd-repo-server
           env:
+            - name: XDG_CONFIG_HOME       
+              value: /custom-tools       
             - name: SOPS_AGE_KEY_FILE
               value: /home/argocd/sops-age/keys.txt
           volumeMounts:
