@@ -27,13 +27,11 @@ spec:
           env:
             - name: SOPS_AGE_KEY_FILE
               value: /home/argocd/sops-age/keys.txt
+            - name: KUSTOMIZE_PLUGIN_HOME
+              value: /custom-tools/kustomize-plugin
           volumeMounts:
             - name: custom-tools
-              mountPath: /usr/local/bin/kustomize
-              subPath: kustomize
-            - name: custom-tools
-              mountPath: /usr/local/bin/ksops
-              subPath: ksops
+              mountPath: /custom-tools
             - name: sops-age
               mountPath: /home/argocd/sops-age
               readOnly: true
