@@ -1,125 +1,101 @@
-SHELL := /bin/bash
+.PHONY: setup-talos gitops-init init-security
 
-# Adjust these variables for your cluster
-VIP = 192.168.178.50
-NODE_1 = 192.168.178.29
-NODE_2 = 192.168.178.11
-NODE_3 = 192.168.178.12
-BOOTSTRAP_NODE = $(NODE_1)
+# Node & Cluster Configuration
+CONTROL_PLANE_IP ?= 192.168.178.101
+CLUSTER_NAME     ?= homelab
+DISK_NAME        ?= sda
+SCHEMATIC_ID     ?= 376567988ad370138ad8b2698212367b8edcb69b5fd68c80be1f2ec7d603b4ba
+TALOS_VERSION    ?= v1.13.8
 
-SOPS_AGE_DIR = $(HOME)/.config/sops/age
-SOPS_AGE_KEY = $(SOPS_AGE_DIR)/keys.txt
+# Paths & Directories
+OUTPUT_DIR       ?= ./talos
+TALOSCONFIG      ?= $(OUTPUT_DIR)/talosconfig
+KUBECONFIG       ?= $(OUTPUT_DIR)/kubeconfig
+SOPS_AGE_DIR     ?= $(HOME)/.config/sops/age
+SOPS_AGE_KEY     ?= $(SOPS_AGE_DIR)/keys.txt
 
-# Aktualisiert um init-security und gitops-init sicherzustellen
-.PHONY: help decrypt encrypt apply-config bootstrap kubeconfig gitops-init init-security traefik-secret clean
-
-help: ## Displays this help message
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
-
-decrypt: ## Decrypts Talos configurations (requires SOPS & your private Age key)
-	@echo "Decrypting Talos configurations..."
-	sops --decrypt talos/clusterconfig/controlplane.base.enc.yaml > talos/clusterconfig/controlplane.base.yaml
-	sops --decrypt talos/talosconfig.enc.yaml > talos/talosconfig.yaml
-	@echo "Done! (Unencrypted files are ignored by .gitignore)"
-
-encrypt: ## Merges base config with patches and encrypts the result
-	@echo "Merging configuration with patches and encrypting..."
-	rm -f talos/clusterconfig/controlplane.base.yaml
-	talosctl machineconfig patch talos/clusterconfig/controlplane.yaml --patch @talos/patches/controlplane.base.yaml > talos/clusterconfig/controlplane.base.yaml
-	sops --encrypt talos/clusterconfig/controlplane.base.yaml > talos/clusterconfig/controlplane.base.enc.yaml
-	sops --encrypt talos/talosconfig.yaml > talos/talosconfig.enc.yaml
-	@echo "Production files successfully encrypted!"
-
-apply-config: decrypt ## Pushes the configuration to all 3 VMs (uses --insecure for fresh nodes)
-	@echo "Applying Talos configuration to nodes..."
-	talosctl apply-config --insecure --nodes $(NODE_1) --file talos/clusterconfig/controlplane.base.yaml
-
-bootstrap: ## Bootstraps the cluster initially (run ONLY ONCE!)
-	@echo "Starting Talos bootstrap on $(BOOTSTRAP_NODE)..."
-	talosctl bootstrap --nodes $(BOOTSTRAP_NODE) --talosconfig talos/talosconfig.yaml
-
-kubeconfig: ## Downloads the kubeconfig for kubectl
-	@echo "Downloading kubeconfig..."
-	talosctl kubeconfig ./talos/kubeconfig --nodes $(BOOTSTRAP_NODE) --talosconfig talos/talosconfig.yaml
-	@echo "Export it using: export KUBECONFIG=\$$(pwd)/talos/kubeconfig"
-
-gitops-init: ## Applies the ArgoCD root app and transfers the SOPS Age key
-	@echo "Starting GitOps bootstrap..."
-	@# Schritt 1: Namespace erstellen
-	kubectl create namespace argocd --kubeconfig talos/kubeconfig || true
-	
-	@# Schritt 2: AGE-Key für SOPS hinterlegen
-	@if [ ! -f $(SOPS_AGE_KEY) ]; then \
-		echo "\033[31mError: Private Age-Key unter $(SOPS_AGE_KEY) nicht gefunden!\033[0m"; \
+setup-talos:
+	@echo "🔍 Checking if disk /dev/$(DISK_NAME) exists on $(CONTROL_PLANE_IP)..."
+	@if ! talosctl get disks --insecure --nodes $(CONTROL_PLANE_IP) | grep -q "$(DISK_NAME)"; then \
+		echo "❌ Error: Disk $(DISK_NAME) not found on $(CONTROL_PLANE_IP)! Aborting."; \
 		exit 1; \
 	fi
-	@echo "Injecting SOPS Age Key..."
+	@echo "✅ Disk $(DISK_NAME) found."
+	
+	@echo "⚙️ Generating Talos configuration in $(OUTPUT_DIR)..."
+	@mkdir -p $(OUTPUT_DIR)
+	talosctl gen config $(CLUSTER_NAME) https://$(CONTROL_PLANE_IP):6443 \
+		--install-disk /dev/$(DISK_NAME) \
+		--install-image factory.talos.dev/installer-secureboot/$(SCHEMATIC_ID):$(TALOS_VERSION) \
+		--config-patch-control-plane 'cluster: {allowSchedulingOnControlPlanes: true}' \
+		--output-dir $(OUTPUT_DIR)
+		
+	@echo "🚀 Applying configuration to $(CONTROL_PLANE_IP)..."
+	talosctl apply-config --insecure --nodes $(CONTROL_PLANE_IP) --file $(OUTPUT_DIR)/controlplane.yaml
+	talosctl --talosconfig=$(TALOSCONFIG) config endpoints $(CONTROL_PLANE_IP)
+	talosctl --talosconfig=$(TALOSCONFIG) config nodes $(CONTROL_PLANE_IP)
+	
+	@echo "⏳ Starting bootstrap process..."
+	talosctl bootstrap --nodes $(CONTROL_PLANE_IP) --talosconfig=$(TALOSCONFIG)
+	
+	@echo "🩺 Checking cluster health..."
+	talosctl --nodes $(CONTROL_PLANE_IP) --talosconfig=$(TALOSCONFIG) health
+	
+	@echo "🔑 Downloading kubeconfig..."
+	talosctl kubeconfig $(KUBECONFIG) \
+		--nodes $(CONTROL_PLANE_IP) \
+		--endpoints $(CONTROL_PLANE_IP) \
+		--talosconfig=$(TALOSCONFIG)
+	@echo "🎉 Cluster setup complete!"
+
+gitops-init:
+	@echo "🚀 Starting GitOps bootstrap..."
+	@if [ ! -f "$(SOPS_AGE_KEY)" ]; then \
+		echo "❌ Error: Private Age key not found at $(SOPS_AGE_KEY)! Aborting."; \
+		exit 1; \
+	fi
+	
+	@echo "📦 Creating argocd namespace & setting PodSecurity policy..."
+	kubectl create namespace argocd --kubeconfig $(KUBECONFIG) || true
+	kubectl label --overwrite namespace argocd pod-security.kubernetes.io/enforce=privileged --kubeconfig $(KUBECONFIG)
+	
+	@echo "🔑 Injecting SOPS Age Key..."
 	kubectl create secret generic sops-age \
 		--namespace argocd \
 		--from-file=keys.txt=$(SOPS_AGE_KEY) \
-		--dry-run=client -o yaml | kubectl apply --kubeconfig talos/kubeconfig -f -
+		--dry-run=client -o yaml | kubectl apply --kubeconfig $(KUBECONFIG) -f -
 	
-	@# Schritt 3: ArgoCD initial über den lokalen Kustomize-Ordner installieren
-	@echo "Applying ArgoCD via local Kustomize base..."
-	kubectl apply -k cluster/argo-cd --server-side --kubeconfig talos/kubeconfig 
+	@echo "📦 Applying ArgoCD via local Kustomize base..."
+	kubectl apply -k cluster/argo-cd --server-side --kubeconfig $(KUBECONFIG)
 	
-	@# Schritt 4: Die Root-App anwenden (aktiviert den GitOps-Kreislauf)
-	@echo "Applying cluster root application..."
-	kubectl apply -f cluster/root.yaml --kubeconfig talos/kubeconfig
+	@echo "🌐 Applying cluster root application..."
+	kubectl apply -f cluster/root.yaml --kubeconfig $(KUBECONFIG)
+	@echo "🎉 GitOps initialized successfully!"
 
-init-security: ## Generates a new Age key in the default SOPS directory and configures .sops.yaml
-	@if [ -f $(SOPS_AGE_KEY) ]; then \
-		echo "\033[31mError: $(SOPS_AGE_KEY) already exists! Move or delete it manually if you want to start fresh.\033[0m"; \
+init-security:
+	@echo "🔍 Checking for age-keygen binary..."
+	@if ! command -v age-keygen >/dev/null 2>&1; then \
+		echo "❌ Error: 'age-keygen' is not installed! Please install 'age' first."; \
 		exit 1; \
 	fi
-	@echo "Creating SOPS configuration directory at $(SOPS_AGE_DIR)..."
+	@if [ -f "$(SOPS_AGE_KEY)" ]; then \
+		echo "❌ Error: Key already exists at $(SOPS_AGE_KEY)! Move or delete it manually to start fresh."; \
+		exit 1; \
+	fi
+	
+	@echo "📁 Creating SOPS configuration directory at $(SOPS_AGE_DIR)..."
 	@mkdir -p $(SOPS_AGE_DIR)
-	@echo "Generating fresh Age key-pair into $(SOPS_AGE_KEY)..."
+	
+	@echo "🔑 Generating fresh Age key-pair..."
 	@age-keygen -o $(SOPS_AGE_KEY)
+	
 	@PUBKEY=$$(grep "public key:" $(SOPS_AGE_KEY) | awk '{print $$4}'); \
-	echo "Public key extracted: $$PUBKEY"; \
-	echo "Creating .sops.yaml file..."; \
-	echo "creation_rules:" > .sops.yaml; \
-	echo "  - path_regex: \.yaml$$" >> .sops.yaml; \
-	echo "    encrypted_regex: ^(data|stringData|crt|key|secret|secretboxEncryptionSecret|id|token)$$" >> .sops.yaml; \
-	echo "    key_groups:" >> .sops.yaml; \
-	echo "      - age:" >> .sops.yaml; \
-	echo "          - \"$$PUBKEY\"" >> .sops.yaml; \
-	echo "\033[32mSuccess! Key stored in $(SOPS_AGE_KEY) and .sops.yaml is configured.\033[0m"
-
-traefik-secret:
-	@# 1. Abhängigkeiten prüfen
-	@command -v htpasswd >/dev/null 2>&1 || { echo "❌ Fehler: 'htpasswd' (apache2-utils) ist nicht installiert."; exit 1; }
-	@command -v sops >/dev/null 2>&1 || { echo "❌ Fehler: 'sops' CLI ist nicht installiert."; exit 1; }
-	
-	@# 2. Zielverzeichnis sicherstellen
-	@mkdir -p platform/traefik
-	
-	@# 3. Benutzereingaben abfragen (Funktioniert jetzt dank SHELL := /bin/bash)
-	@read -p "Gewünschten Benutzernamen eingeben: " UNAME; \
-	read -s -p "Gewünschtes Passwort eingeben: " PWD; echo ""; \
-	\
-	if [ -z "$$UNAME" ] || [ -z "$$PWD" ]; then \
-		echo "❌ Fehler: Benutzername und Passwort dürfen nicht leer sein."; \
+	if [ -z "$$PUBKEY" ]; then \
+		echo "❌ Error: Failed to extract public key from $(SOPS_AGE_KEY)!"; \
 		exit 1; \
 	fi; \
-	\
-	HASH=$$(htpasswd -Bnb "$$UNAME" "$$PWD" | tr -d '\n\r'); \
-	TMPFILE=$$(mktemp /tmp/traefik-secret.XXXXXX.yaml); \
-	\
-	trap 'rm -f "$$TMPFILE"' EXIT; \
-	\
-	printf "apiVersion: v1\nkind: Secret\nmetadata:\n  name: traefik-auth\n  namespace: traefik\ntype: Opaque\nstringData:\n  users: |\n    %s\n" "$$HASH" > "$$TMPFILE"; \
-	\
-	if sops --encrypt "$$TMPFILE" > platform/traefik/secret-traefik-auth.enc.yaml; then \
-		echo "✅ Secret erfolgreich verschlüsselt und abgelegt unter:"; \
-		echo "   platform/traefik/secret-traefik-auth.enc.yaml"; \
-	else \
-		echo "❌ Fehler bei der SOPS-Verschlüsselung."; \
-		exit 1; \
-	fi
-
-clean: ## Deletes local, unencrypted sensitive files
-	@echo "Cleaning up unencrypted files..."
-	rm -f talos/clusterconfig/controlplane.yaml talos/clusterconfig/talosconfig.yaml talos/clusterconfig/kubeconfig
-	@echo "Security cleanup complete!"
+	echo "✅ Extracted public key: $$PUBKEY"; \
+	echo "⚙️ Creating .sops.yaml..."; \
+	printf "creation_rules:\n  - path_regex: \\.yaml$$\n    encrypted_regex: ^(data|stringData|crt|key|secret|secretboxEncryptionSecret|id|token)$$\n    key_groups:\n      - age:\n          - \"%s\"\n" "$$PUBKEY" > .sops.yaml
+	
+	@echo "🎉 Security setup complete! Key saved to $(SOPS_AGE_KEY) and .sops.yaml created."
