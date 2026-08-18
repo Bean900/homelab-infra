@@ -27,8 +27,8 @@ spec:
           env:
             - name: SOPS_AGE_KEY_FILE
               value: /home/argocd/sops-age/keys.txt
-            - name: KUSTOMIZE_PLUGIN_HOME
-              value: /custom-tools/kustomize-plugin
+            - name: PATH
+              value: /custom-tools:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
           volumeMounts:
             - name: custom-tools
               mountPath: /custom-tools
