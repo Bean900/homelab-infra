@@ -14,7 +14,11 @@ spec:
       initContainers:
         - name: install-ksops
           image: viaductoss/ksops:v4.5.1
-          command: ["/usr/local/bin/ksops", "install", "/custom-tools"]
+          command:
+            - /usr/local/bin/ksops
+            - install
+            - --with-kustomize
+            - /custom-tools
           securityContext:
             allowPrivilegeEscalation: false
             runAsNonRoot: true
@@ -30,12 +34,8 @@ spec:
       containers:
         - name: argocd-repo-server
           env:
-            - name: XDG_CONFIG_HOME
-              value: /custom-tools
             - name: SOPS_AGE_KEY_FILE
               value: /home/argocd/sops-age/keys.txt
-            - name: KUSTOMIZE_PLUGIN_HOME
-              value: /custom-tools/kustomize/plugin
           volumeMounts:
             - name: custom-tools
               mountPath: /custom-tools
