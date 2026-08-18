@@ -14,7 +14,7 @@ spec:
       initContainers:
         - name: install-ksops
           image: viaductoss/ksops:v4.5.1
-          command: ["/usr/local/bin/ksops", "install", "/custom-tools"]
+          command: ["/usr/local/bin/ksops", "install", "/custom-tools/kustomize/plugin/viaduct.ai/v1/ksops"]
           securityContext:
             allowPrivilegeEscalation: false
             runAsNonRoot: true
