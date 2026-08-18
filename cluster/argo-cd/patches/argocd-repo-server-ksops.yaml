@@ -38,7 +38,8 @@ spec:
               value: /home/argocd/sops-age/keys.txt
           volumeMounts:
             - name: custom-tools
-              mountPath: /custom-tools
+              mountPath: /usr/local/bin/ksops
+              subPath: ksops
             - name: sops-age
               mountPath: /home/argocd/sops-age
               readOnly: true
