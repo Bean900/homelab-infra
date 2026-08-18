@@ -30,8 +30,6 @@ spec:
               value: "true"
             - name: lb_port
               value: "6443"
-            - name: vip_interface
-              value: "enp0s31f6"  
             - name: svc_enable
               value: "true" 
             - name: vip_nodename
