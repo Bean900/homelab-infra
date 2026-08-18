@@ -15,6 +15,9 @@ rules:
   - apiGroups: ["coordination.k8s.io"]
     resources: ["leases"]
     verbs: ["list", "get", "watch", "update", "create"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["create", "patch"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -28,3 +31,55 @@ subjects:
   - kind: ServiceAccount
     name: kube-vip
     namespace: kube-system
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kubevip-configmap
+  namespace: kube-system
+data:
+  # Der Pool beinhaltet nun auch die .100
+  range-global: "192.168.178.60-192.168.178.100"
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: kube-vip-ds
+  namespace: kube-system
+spec:
+  selector:
+    matchLabels:
+      name: kube-vip
+  template:
+    metadata:
+      labels:
+        name: kube-vip
+    spec:
+      hostNetwork: true
+      serviceAccountName: kube-vip  
+      containers:
+        - name: kube-vip
+          image: ghcr.io/kube-vip/kube-vip:v0.8.2
+          imagePullPolicy: Always
+          args:
+            - manager 
+          securityContext:
+            capabilities:
+              add: ["NET_ADMIN", "NET_RAW"]
+          env:
+            - name: vip_arp
+              value: "true"
+            - name: vip_leaderelection
+              value: "true"
+            - name: vip_interface
+              value: "eth0" 
+            - name: lb_enable
+              value: "true"
+            - name: lb_port
+              value: "6443"
+            - name: svc_enable
+              value: "true" 
+            - name: vip_nodename
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName

@@ -4,4 +4,4 @@ metadata:
   name: kubevip-configmap
   namespace: kube-system
 data:
-  range-global: "192.168.178.60-192.168.178.80"
+  range-global: "192.168.178.100-192.168.178.100"
