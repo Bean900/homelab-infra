@@ -71,8 +71,6 @@ spec:
               value: "true"
             - name: vip_leaderelection
               value: "true"
-            - name: vip_interface
-              value: "eth0" 
             - name: lb_enable
               value: "true"
             - name: lb_port
