@@ -11,9 +11,10 @@ Thumbs.db
 # =========================
 # Kubernetes / Talos
 # =========================
-kubeconfig
-kubeconfig.*
-talosconfig.yaml
+talos/kubeconfig
+talos/controlplane.yaml
+talos/worker.yaml
+talos/talosconfig
 !talosconfig.enc.yaml
 
 # Talos generated secrets / state

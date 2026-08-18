@@ -3,7 +3,7 @@ kind: Service
 metadata:
   name: traefik-service
   annotations:
-    kube-vip.io/loadbalancerIPs: "192.168.178.63"
+    kube-vip.io/loadbalancerIPs: "192.168.178.100"
 spec:
   type: LoadBalancer
   selector:

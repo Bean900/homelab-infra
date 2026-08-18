@@ -1,4 +1,4 @@
-.PHONY: setup-talos gitops-init init-security
+.PHONY: setup-talos gitops-init gitops-patch get-argocd-password init-security
 
 # Node & Cluster Configuration
 CONTROL_PLANE_IP ?= 192.168.178.101
@@ -28,12 +28,27 @@ setup-talos:
 		--install-disk /dev/$(DISK_NAME) \
 		--install-image factory.talos.dev/installer-secureboot/$(SCHEMATIC_ID):$(TALOS_VERSION) \
 		--config-patch-control-plane 'cluster: {allowSchedulingOnControlPlanes: true}' \
-		--output-dir $(OUTPUT_DIR)
+		--output-dir $(OUTPUT_DIR) \
+		--force
 		
 	@echo "🚀 Applying configuration to $(CONTROL_PLANE_IP)..."
 	talosctl apply-config --insecure --nodes $(CONTROL_PLANE_IP) --file $(OUTPUT_DIR)/controlplane.yaml
 	talosctl --talosconfig=$(TALOSCONFIG) config endpoints $(CONTROL_PLANE_IP)
 	talosctl --talosconfig=$(TALOSCONFIG) config nodes $(CONTROL_PLANE_IP)
+	
+	@echo "⏳ Waiting for node API to become ready (node installation/reboot)..."
+	@for i in $$(seq 1 30); do \
+		if talosctl version --nodes $(CONTROL_PLANE_IP) --talosconfig=$(TALOSCONFIG) >/dev/null 2>&1; then \
+			echo "✅ Node API is reachable!"; \
+			break; \
+		fi; \
+		if [ $$i -eq 30 ]; then \
+			echo "❌ Error: Timed out waiting for node API on $(CONTROL_PLANE_IP)!"; \
+			exit 1; \
+		fi; \
+		echo "  Node not ready yet, retrying in 5s ($$i/30)..."; \
+		sleep 5; \
+	done
 	
 	@echo "⏳ Starting bootstrap process..."
 	talosctl bootstrap --nodes $(CONTROL_PLANE_IP) --talosconfig=$(TALOSCONFIG)
@@ -47,30 +62,6 @@ setup-talos:
 		--endpoints $(CONTROL_PLANE_IP) \
 		--talosconfig=$(TALOSCONFIG)
 	@echo "🎉 Cluster setup complete!"
-
-gitops-init:
-	@echo "🚀 Starting GitOps bootstrap..."
-	@if [ ! -f "$(SOPS_AGE_KEY)" ]; then \
-		echo "❌ Error: Private Age key not found at $(SOPS_AGE_KEY)! Aborting."; \
-		exit 1; \
-	fi
-	
-	@echo "📦 Creating argocd namespace & setting PodSecurity policy..."
-	kubectl create namespace argocd --kubeconfig $(KUBECONFIG) || true
-	kubectl label --overwrite namespace argocd pod-security.kubernetes.io/enforce=privileged --kubeconfig $(KUBECONFIG)
-	
-	@echo "🔑 Injecting SOPS Age Key..."
-	kubectl create secret generic sops-age \
-		--namespace argocd \
-		--from-file=keys.txt=$(SOPS_AGE_KEY) \
-		--dry-run=client -o yaml | kubectl apply --kubeconfig $(KUBECONFIG) -f -
-	
-	@echo "📦 Applying ArgoCD via local Kustomize base..."
-	kubectl apply -k cluster/argo-cd --server-side --kubeconfig $(KUBECONFIG)
-	
-	@echo "🌐 Applying cluster root application..."
-	kubectl apply -f cluster/root.yaml --kubeconfig $(KUBECONFIG)
-	@echo "🎉 GitOps initialized successfully!"
 
 init-security:
 	@echo "🔍 Checking for age-keygen binary..."
@@ -99,3 +90,59 @@ init-security:
 	printf "creation_rules:\n  - path_regex: \\.yaml$$\n    encrypted_regex: ^(data|stringData|crt|key|secret|secretboxEncryptionSecret|id|token)$$\n    key_groups:\n      - age:\n          - \"%s\"\n" "$$PUBKEY" > .sops.yaml
 	
 	@echo "🎉 Security setup complete! Key saved to $(SOPS_AGE_KEY) and .sops.yaml created."
+
+gitops-init:
+	@echo "🚀 Starting GitOps bootstrap..."
+	@if [ ! -f "$(SOPS_AGE_KEY)" ]; then \
+		echo "❌ Error: Private Age key not found at $(SOPS_AGE_KEY)! Aborting."; \
+		exit 1; \
+	fi
+	
+	@echo "📦 Creating argocd namespace & setting PodSecurity policy..."
+	kubectl create namespace argocd --kubeconfig $(KUBECONFIG) || true
+	kubectl label --overwrite namespace argocd pod-security.kubernetes.io/enforce=privileged --kubeconfig $(KUBECONFIG)
+	
+	@echo "🔑 Injecting SOPS Age Key..."
+	kubectl create secret generic sops-age \
+		--namespace argocd \
+		--from-file=keys.txt=$(SOPS_AGE_KEY) \
+		--dry-run=client -o yaml | kubectl apply --kubeconfig $(KUBECONFIG) -f -
+	
+	@echo "📦 Applying ArgoCD via local Kustomize base..."
+	kubectl apply -k cluster/argo-cd --server-side --kubeconfig $(KUBECONFIG)
+	
+	@echo "🌐 Applying cluster root application..."
+	kubectl apply -f cluster/root.yaml --kubeconfig $(KUBECONFIG)
+	@echo "🎉 GitOps initialized successfully!"
+
+gitops-patch:
+	@echo "🔍 Checking for kubeconfig at $(KUBECONFIG)..."
+	@if [ ! -f "$(KUBECONFIG)" ]; then \
+		echo "❌ Error: Kubeconfig not found at $(KUBECONFIG)! Run 'make setup-talos' first."; \
+		exit 1; \
+	fi
+	
+	@echo "📦 Re-applying ArgoCD Kustomize base..."
+	kubectl apply -k cluster/argo-cd --server-side --kubeconfig $(KUBECONFIG)
+	
+	@echo "🌐 Re-applying cluster root application..."
+	kubectl apply -f cluster/root.yaml --kubeconfig $(KUBECONFIG)
+	
+	@echo "🔄 Triggering ArgoCD hard refresh on root-app..."
+	kubectl annotate application root-app -n argocd argocd.argoproj.io/refresh=hard --overwrite --kubeconfig $(KUBECONFIG) || true
+	
+	@echo "🎉 GitOps patched and refreshed successfully!"
+
+get-argocd-password:
+	@echo "🔍 Checking for kubeconfig at $(KUBECONFIG)..."
+	@if [ ! -f "$(KUBECONFIG)" ]; then \
+		echo "❌ Error: Kubeconfig not found at $(KUBECONFIG)! Run 'make setup-talos' first."; \
+		exit 1; \
+	fi
+	@echo "🔑 Retrieving initial ArgoCD admin password..."
+	@if ! kubectl get secret argocd-initial-admin-secret -n argocd --kubeconfig $(KUBECONFIG) >/dev/null 2>&1; then \
+		echo "❌ Error: Secret 'argocd-initial-admin-secret' not found in 'argocd' namespace!"; \
+		exit 1; \
+	fi
+	@echo -n "Password: "
+	@kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" --kubeconfig $(KUBECONFIG) | base64 -d; echo ""
