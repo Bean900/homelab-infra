@@ -100,7 +100,11 @@ gitops-init:
 	
 	@echo "📦 Creating argocd namespace & setting PodSecurity policy..."
 	kubectl create namespace argocd --kubeconfig $(KUBECONFIG) || true
-	kubectl label --overwrite namespace argocd pod-security.kubernetes.io/enforce=privileged --kubeconfig $(KUBECONFIG)
+	kubectl label --overwrite namespace argocd \
+		pod-security.kubernetes.io/enforce=privileged \
+		pod-security.kubernetes.io/warn=privileged \
+		pod-security.kubernetes.io/audit=privileged \
+		--kubeconfig $(KUBECONFIG)
 	
 	@echo "🔑 Injecting SOPS Age Key..."
 	kubectl create secret generic sops-age \
@@ -109,7 +113,7 @@ gitops-init:
 		--dry-run=client -o yaml | kubectl apply --kubeconfig $(KUBECONFIG) -f -
 	
 	@echo "📦 Applying ArgoCD via local Kustomize base..."
-	kubectl apply -k cluster/argo-cd --server-side --kubeconfig $(KUBECONFIG)
+	kubectl apply -k cluster/argo-cd --server-side --force-conflicts --kubeconfig $(KUBECONFIG)
 	
 	@echo "🌐 Applying cluster root application..."
 	kubectl apply -f cluster/root.yaml --kubeconfig $(KUBECONFIG)
@@ -123,7 +127,7 @@ gitops-patch:
 	fi
 	
 	@echo "📦 Re-applying ArgoCD Kustomize base..."
-	kubectl apply -k cluster/argo-cd --server-side --kubeconfig $(KUBECONFIG)
+	kubectl apply -k cluster/argo-cd --server-side --force-conflicts --kubeconfig $(KUBECONFIG)
 	
 	@echo "🌐 Re-applying cluster root application..."
 	kubectl apply -f cluster/root.yaml --kubeconfig $(KUBECONFIG)
