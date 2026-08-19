@@ -10,6 +10,7 @@ resources:
   - serviceaccount.yaml
   - ingressclass.yaml
   - deployment.yaml
+  - dashboard-ingressroute.yaml
   - service.yaml
   - middleware.yaml
 
