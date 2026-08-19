@@ -22,6 +22,7 @@ spec:
             - --entrypoints.traefik.address=:8080
             - --ping=true
             - --api.dashboard=true
+            - --api.insecure=true
             - --providers.kubernetescrd=true
             - --providers.kubernetescrd.allowCrossNamespace=true
             - --providers.kubernetesingress       
