@@ -1,10 +1,11 @@
 apiVersion: viaduct.ai/v1
-kind: ksops
+kind: KSOPS
 metadata:
-  name: traefik-secret-generator
+  name: traefik-auth-generator
+  namespace: traefik
   annotations:
     config.kubernetes.io/function: |
       exec:
         path: ksops
 files:
-  - ./secret-traefik-auth.enc.yaml
+  - secret-traefik-auth.enc.yaml

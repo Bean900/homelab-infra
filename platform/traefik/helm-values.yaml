@@ -1,0 +1,69 @@
+# Werte für den offiziellen Traefik-Helm-Chart
+# https://github.com/traefik/traefik-helm-chart
+
+deployment:
+  replicas: 2 # HA: 2 Pods für rolling updates ohne Downtime
+
+podDisruptionBudget:
+  enabled: true
+  maxUnavailable: 1
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 256Mi
+
+# --- Entrypoints -------------------------------------------------
+ports:
+  web:
+    port: 8000
+    exposedPort: 80
+    # HTTP wird immer auf HTTPS umgeleitet
+    redirectTo:
+      port: websecure
+  websecure:
+    port: 8443
+    exposedPort: 443
+    tls:
+      enabled: true
+
+# --- Service (kube-vip vergibt hier die externe VIP) --------------
+service:
+  type: LoadBalancer
+  annotations:
+    # <<< ANPASSEN: feste VIP aus deinem kube-vip Netz/Pool >>>
+    kube-vip.io/loadbalancerIPs: "192.168.1.240"
+
+# --- Provider -------------------------------------------------------
+providers:
+  kubernetesCRD:
+    enabled: true
+    allowCrossNamespace: false
+  kubernetesIngress:
+    enabled: true
+
+# --- Dashboard (abgesichert über Middleware, siehe ingressroute-dashboard.yaml) ---
+api:
+  dashboard: true
+  insecure: false
+
+ingressRoute:
+  dashboard:
+    enabled: false # eigene IngressRoute wird separat via kustomize resources ausgerollt
+
+# --- Logging & Metrics ---------------------------------------------
+logs:
+  general:
+    level: INFO
+  access:
+    enabled: true
+
+metrics:
+  prometheus:
+    entryPoint: metrics
+    addEntryPointsLabels: true
+    addRoutersLabels: true
+    addServicesLabels: true

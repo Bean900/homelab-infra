@@ -1,3 +1,5 @@
+SHELL := /bin/bash
+
 .PHONY: setup-talos gitops-init gitops-patch get-argocd-password init-security
 
 # Node & Cluster Configuration
@@ -163,12 +165,12 @@ traefik-secret:
 
 	@# 3. Prompt user input, generate YAML, and stream to SOPS
 	@read -p "Enter desired username: " UNAME; \
-	read -s -p "Enter desired password: " PWD; echo ""; \
-	if [ -z "$$UNAME" ] || [ -z "$$PWD" ]; then \
+	read -s -p "Enter desired password: " PASS; echo ""; \
+	if [ -z "$$UNAME" ] || [ -z "$$PASS" ]; then \
 		echo "❌ Error: Username and password cannot be empty."; \
 		exit 1; \
 	fi; \
-	HASH=$$(htpasswd -Bnb "$$UNAME" "$$PWD" | tr -d '\n\r'); \
+	HASH=$$(htpasswd -Bnb "$$UNAME" "$$PASS" | tr -d '\n\r'); \
 	OUT_FILE="platform/traefik/secret-traefik-auth.enc.yaml"; \
 	if kubectl create secret generic traefik-auth \
 		--namespace traefik \

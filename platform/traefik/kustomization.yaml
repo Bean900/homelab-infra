@@ -3,16 +3,23 @@ kind: Kustomization
 
 namespace: traefik
 
+# Zusätzliche, handgeschriebene Resources (Dashboard-Absicherung)
 resources:
-  - namespace.yaml
-  - https://raw.githubusercontent.com/traefik/traefik/v3.7/docs/content/reference/dynamic-configuration/kubernetes-crd-definition-v1.yml
-  - https://raw.githubusercontent.com/traefik/traefik/v3.7/docs/content/reference/dynamic-configuration/kubernetes-crd-rbac.yml
-  - serviceaccount.yaml
-  - ingressclass.yaml
-  - deployment.yaml
-  - dashboard-ingress.yaml
-  - service.yaml
-  - middleware.yaml
+  - middleware-basic-auth.yaml
+  - ingressroute-dashboard.yaml
 
+# ksops entschlüsselt secret-traefik-auth.enc.yaml zur Build-Zeit
+# und generiert daraus das Klartext-Secret "traefik-auth"
 generators:
   - ksops-generator.yaml
+
+# Traefik wird über den offiziellen Helm-Chart eingebunden und
+# via Kustomize "inflated" (letzte Anpassungen über patches möglich).
+helmCharts:
+  - name: traefik
+    repo: https://traefik.github.io/charts
+    version: "41.2.0" # Version fixieren! Prüfen: helm search repo traefik/traefik --versions
+    releaseName: traefik
+    namespace: traefik
+    valuesFile: helm-values.yaml
+    includeCRDs: true # liefert IngressRoute/Middleware/... CRDs gleich mit
