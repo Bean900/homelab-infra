@@ -22,20 +22,29 @@ ports:
     port: 8000
     exposedPort: 80
     # HTTP wird immer auf HTTPS umgeleitet
-    redirectTo:
-      port: websecure
+    http:
+      redirections:
+        entryPoint:
+          to: websecure
+          scheme: https
   websecure:
     port: 8443
     exposedPort: 443
-    tls:
-      enabled: true
+    http:
+      tls:
+        enabled: true
+        domains:
+          - main: "home.lab"
+            sans:
+              - "*.home.lab"
 
 # --- Service (kube-vip vergibt hier die externe VIP) --------------
 service:
-  type: LoadBalancer
+  spec:
+    type: LoadBalancer
   annotations:
     # <<< ANPASSEN: feste VIP aus deinem kube-vip Netz/Pool >>>
-    kube-vip.io/loadbalancerIPs: "192.168.1.240"
+    kube-vip.io/loadbalancerIPs: "192.168.178.100"
 
 # --- Provider -------------------------------------------------------
 providers:
@@ -53,13 +62,6 @@ api:
 ingressRoute:
   dashboard:
     enabled: false # eigene IngressRoute wird separat via kustomize resources ausgerollt
-
-# --- Logging & Metrics ---------------------------------------------
-logs:
-  general:
-    level: INFO
-  access:
-    enabled: true
 
 metrics:
   prometheus:

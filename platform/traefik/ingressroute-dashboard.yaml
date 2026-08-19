@@ -7,7 +7,7 @@ spec:
   entryPoints:
     - websecure
   routes:
-    - match: Host(`traefik.example.home`) # <<< ANPASSEN: eure Domain
+    - match: Host(`traefik.home.lab`) # <<< ANPASSEN: eure Domain
       kind: Rule
       services:
         - name: api@internal
