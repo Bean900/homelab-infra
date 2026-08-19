@@ -11,6 +11,7 @@ resources:
   - ingressclass.yaml
   - deployment.yaml
   - dashboard-ingressroute.yaml
+  - dashboard-ingress.yaml
   - service.yaml
   - middleware.yaml
 
