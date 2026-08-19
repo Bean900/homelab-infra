@@ -21,7 +21,8 @@ spec:
             - --entrypoints.websecure.address=:443
             - --entrypoints.traefik.address=:8080
             - --ping=true
-            - --providers.kubernetescrd
+            - --api.dashboard=true
+            - --providers.kubernetescrd=true
             - --providers.kubernetescrd.allowCrossNamespace=true
             - --providers.kubernetesingress       
             - --log.level=INFO

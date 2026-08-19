@@ -150,3 +150,35 @@ get-argocd-password:
 	fi
 	@echo -n "Password: "
 	@kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" --kubeconfig $(KUBECONFIG) | base64 -d; echo ""
+
+traefik-secret:
+	@# 1. Check dependencies & prerequisites
+	@command -v htpasswd >/dev/null 2>&1 || { echo "❌ Error: 'htpasswd' (apache2-utils) is not installed."; exit 1; }
+	@command -v sops >/dev/null 2>&1 || { echo "❌ Error: 'sops' CLI is not installed."; exit 1; }
+	@command -v kubectl >/dev/null 2>&1 || { echo "❌ Error: 'kubectl' is not installed."; exit 1; }
+	@[ -f .sops.yaml ] || { echo "❌ Error: No '.sops.yaml' found in root directory!"; exit 1; }
+
+	@# 2. Ensure target directory exists
+	@mkdir -p platform/traefik
+
+	@# 3. Prompt user input, generate YAML, and stream to SOPS
+	@read -p "Enter desired username: " UNAME; \
+	read -s -p "Enter desired password: " PWD; echo ""; \
+	if [ -z "$$UNAME" ] || [ -z "$$PWD" ]; then \
+		echo "❌ Error: Username and password cannot be empty."; \
+		exit 1; \
+	fi; \
+	HASH=$$(htpasswd -Bnb "$$UNAME" "$$PWD" | tr -d '\n\r'); \
+	OUT_FILE="platform/traefik/secret-traefik-auth.enc.yaml"; \
+	if kubectl create secret generic traefik-auth \
+		--namespace traefik \
+		--from-literal=users="$$HASH" \
+		--dry-run=client -o yaml | \
+		sops --filename-override "$$OUT_FILE" --encrypt /dev/stdin > "$$OUT_FILE"; then \
+		echo "✅ Secret successfully encrypted and saved to:"; \
+		echo "   $$OUT_FILE"; \
+	else \
+		echo "❌ Error during SOPS encryption."; \
+		rm -f "$$OUT_FILE"; \
+		exit 1; \
+	fi
