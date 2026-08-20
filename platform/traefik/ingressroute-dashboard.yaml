@@ -7,11 +7,11 @@ spec:
   entryPoints:
     - websecure
   routes:
-    - match: Host(`traefik.home.lab`) # <<< ANPASSEN: eure Domain
+    - match: Host(`traefik.lab`)
       kind: Rule
       services:
         - name: api@internal
           kind: TraefikService
       middlewares:
         - name: traefik-dashboard-auth
-  tls: {} # nutzt vorerst das Traefik-Default-Zertifikat (self-signed)
+  tls: {}

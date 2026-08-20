@@ -1,5 +1,5 @@
-# Werte für den offiziellen Traefik-Helm-Chart
-# https://github.com/traefik/traefik-helm-chart
+# Werte für den offiziellen Traefik-Helm-Chart (v41.x)
+# https://github.com/traefik/traefik-helm-chart/blob/master/traefik/values.yaml
 
 deployment:
   replicas: 2 # HA: 2 Pods für rolling updates ohne Downtime
@@ -27,23 +27,23 @@ ports:
         entryPoint:
           to: websecure
           scheme: https
+          permanent: true
   websecure:
     port: 8443
     exposedPort: 443
     http:
       tls:
-        enabled: true
+        enabled: true  
         domains:
-          - main: "home.lab"
+          - main: "lab"
             sans:
-              - "*.home.lab"
+              - "*.lab"
 
 # --- Service (kube-vip vergibt hier die externe VIP) --------------
 service:
   spec:
     type: LoadBalancer
   annotations:
-    # <<< ANPASSEN: feste VIP aus deinem kube-vip Netz/Pool >>>
     kube-vip.io/loadbalancerIPs: "192.168.178.100"
 
 # --- Provider -------------------------------------------------------
@@ -62,6 +62,13 @@ api:
 ingressRoute:
   dashboard:
     enabled: false # eigene IngressRoute wird separat via kustomize resources ausgerollt
+
+# --- Logging & Metrics ---------------------------------------------
+log:
+  level: INFO
+
+accessLog:
+  enabled: true
 
 metrics:
   prometheus:
