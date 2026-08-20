@@ -5,7 +5,9 @@ namespace: argocd
 
 resources:
   - https://raw.githubusercontent.com/argoproj/argo-cd/v3.4.3/manifests/install.yaml
+  - ingressroute-argocd.yaml
 
 patches:
   - path: patches/argocd-cm-ksops.yaml
   - path: patches/argocd-repo-server-ksops.yaml
+  - path: patches/argocd-cmd-params-cm.yaml
