@@ -14,7 +14,7 @@ spec:
     metadata:
       name: '{{path.basename}}'
     spec:
-      project: applications
+      project: applications  
       source:
         repoURL: https://github.com/Bean900/homelab-infra.git
         targetRevision: HEAD
@@ -26,3 +26,6 @@ spec:
         automated:
           prune: true
           selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+          - ServerSideApply=true

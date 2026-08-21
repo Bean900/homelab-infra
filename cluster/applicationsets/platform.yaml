@@ -10,7 +10,6 @@ spec:
         revision: HEAD
         directories:
           - path: platform/*
-          - path: platform/*/*
   template:
     metadata:
       name: '{{path.basename}}'
@@ -27,3 +26,6 @@ spec:
         automated:
           prune: true
           selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+          - ServerSideApply=true

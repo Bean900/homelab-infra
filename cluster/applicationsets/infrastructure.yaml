@@ -9,13 +9,12 @@ spec:
         repoURL: https://github.com/Bean900/homelab-infra.git
         revision: HEAD
         directories:
-          - path: infrastructure/*
           - path: infrastructure/*/*
   template:
     metadata:
       name: '{{path.basename}}'
     spec:
-      project: infrastructure
+      project: infrastructure  
       source:
         repoURL: https://github.com/Bean900/homelab-infra.git
         targetRevision: HEAD
@@ -27,3 +26,6 @@ spec:
         automated:
           prune: true
           selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+          - ServerSideApply=true
