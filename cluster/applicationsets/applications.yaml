@@ -1,0 +1,28 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: applications
+  namespace: argocd
+spec:
+  generators:
+    - git:
+        repoURL: https://github.com/Bean900/homelab-infra.git
+        revision: HEAD
+        directories:
+          - path: applications/*/*
+  template:
+    metadata:
+      name: '{{path.basename}}'
+    spec:
+      project: applications
+      source:
+        repoURL: https://github.com/Bean900/homelab-infra.git
+        targetRevision: HEAD
+        path: '{{path}}'
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: '{{path.basename}}'
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
