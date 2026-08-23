@@ -1,12 +1,12 @@
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
-  name: argocd-theuer-me
+  name: argocd-argo-lab
   namespace: argocd
 spec:
-  secretName: argocd-theuer-me-tls
+  secretName: argocd-argo-lab-tls
   dnsNames:
-    - argocd.theuer.me
+    - argo.lab
   issuerRef:
-    name: letsencrypt-http01
+    name: internal-ca           
     kind: ClusterIssuer
