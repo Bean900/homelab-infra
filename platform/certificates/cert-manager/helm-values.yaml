@@ -1,6 +1,10 @@
 crds:
   enabled: true
 
+global:
+  leaderElection:
+    namespace: cert-manager    
+
 resources:
   requests:
     cpu: 50m
