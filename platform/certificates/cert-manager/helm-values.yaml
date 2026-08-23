@@ -3,7 +3,10 @@ crds:
 
 global:
   leaderElection:
-    namespace: cert-manager    
+    namespace: cert-manager
+
+startupapicheck:
+  enabled: false
 
 resources:
   requests:
