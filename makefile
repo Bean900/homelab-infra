@@ -116,7 +116,7 @@ gitops-init:
 	
 	@echo "📦 Applying ArgoCD via local Kustomize base..."
 	kubectl apply -k cluster/argo-cd --server-side --force-conflicts --kubeconfig $(KUBECONFIG)
-	
+
 	@echo "🌐 Applying cluster root application..."
 	kubectl apply -f cluster/root.yaml --kubeconfig $(KUBECONFIG)
 	@echo "🎉 GitOps initialized successfully!"
@@ -193,5 +193,5 @@ shutdown-cluster:
 		exit 0; \
 	fi
 	@echo "⏳ Shutting down the cluster..."
-	talosctl --talosconfig=$(TALOSCONFIG) shutdown --nodes $(CONTROL_PLANE_IP)
+	talosctl --talosconfig=$(TALOSCONFIG) shutdown --nodes $(CONTROL_PLANE_IP) --force
 	@echo "✅ Cluster shutdown command issued. Nodes will power off."
