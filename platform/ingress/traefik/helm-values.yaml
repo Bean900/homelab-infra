@@ -33,11 +33,12 @@ ports:
     exposedPort: 443
     http:
       tls:
-        enabled: true  
-        domains:
-          - main: "lab"
-            sans:
-              - "*.lab"
+        enabled: true 
+        
+tlsStore:
+  default:
+    defaultCertificate:
+      secretName: lab-wildcard-tls
 
 # --- Service (kube-vip vergibt hier die externe VIP) --------------
 service:

@@ -7,6 +7,7 @@ namespace: traefik
 resources:
   - middleware-basic-auth.yaml
   - ingressroute-dashboard.yaml
+  - certificate-lab-wildcard.yaml  
 
 # ksops entschlüsselt secret-traefik-auth.enc.yaml zur Build-Zeit
 # und generiert daraus das Klartext-Secret "traefik-auth"
