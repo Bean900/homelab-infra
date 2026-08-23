@@ -6,3 +6,4 @@ resources:
   - applicationsets/platform.yaml
   - applicationsets/infrastructure.yaml
   - argo-cd-self-managed.yaml
+  - argo-cd-ingress.yaml  
