@@ -34,6 +34,8 @@ spec:
               value: "6443"
             - name: svc_enable
               value: "true" 
+            - name: vip_vmac
+              value: "true"
             - name: vip_nodename
               valueFrom:
                 fieldRef:
