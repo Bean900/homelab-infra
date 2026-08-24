@@ -5,5 +5,5 @@ metadata:
   namespace: longhorn-system
 spec:
   basicAuth:
-    secret: longhorn-auth # Name muss zum Makefile-Secret passen
+    secret: longhorn-auth  
     removeHeader: true

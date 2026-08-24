@@ -19,3 +19,5 @@ patches:
     patch: |-
       - op: remove
         path: /metadata/annotations/helm.sh~1hook
+generators:
+  - ksops-generator.yaml
