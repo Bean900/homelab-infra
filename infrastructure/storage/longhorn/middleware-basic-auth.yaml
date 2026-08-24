@@ -1,9 +1,9 @@
 apiVersion: traefik.io/v1alpha1
 kind: Middleware
 metadata:
-  name: traefik-dashboard-auth
-  namespace: traefik
+  name: longhorn-dashboard-auth
+  namespace: longhorn-system
 spec:
   basicAuth:
-    secret: traefik-auth # Name muss zum Makefile-Secret passen
+    secret: longhorn-auth # Name muss zum Makefile-Secret passen
     removeHeader: true

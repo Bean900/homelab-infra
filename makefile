@@ -186,6 +186,38 @@ traefik-secret:
 		exit 1; \
 	fi
 
+longhorn-secret:
+	@# 1. Check dependencies & prerequisites
+	@command -v htpasswd >/dev/null 2>&1 || { echo "❌ Error: 'htpasswd' (apache2-utils) is not installed."; exit 1; }
+	@command -v sops >/dev/null 2>&1 || { echo "❌ Error: 'sops' CLI is not installed."; exit 1; }
+	@command -v kubectl >/dev/null 2>&1 || { echo "❌ Error: 'kubectl' is not installed."; exit 1; }
+	@[ -f .sops.yaml ] || { echo "❌ Error: No '.sops.yaml' found in root directory!"; exit 1; }
+
+	@# 2. Ensure target directory exists
+	@mkdir -p infrastructure/storage/longhorn
+
+	@# 3. Prompt user input, generate YAML, and stream to SOPS
+	@read -p "Enter desired username: " UNAME; \
+	read -s -p "Enter desired password: " PASS; echo ""; \
+	if [ -z "$$UNAME" ] || [ -z "$$PASS" ]; then \
+		echo "❌ Error: Username and password cannot be empty."; \
+		exit 1; \
+	fi; \
+	HASH=$$(htpasswd -Bnb "$$UNAME" "$$PASS" | tr -d '\n\r'); \
+	OUT_FILE="infrastructure/storage/longhorn/secret-longhorn-auth.enc.yaml"; \
+	if kubectl create secret generic longhorn-auth \
+		--namespace longhorn-system \
+		--from-literal=users="$$HASH" \
+		--dry-run=client -o yaml | \
+		sops --filename-override "$$OUT_FILE" --encrypt /dev/stdin > "$$OUT_FILE"; then \
+		echo "✅ Secret successfully encrypted and saved to:"; \
+		echo "   $$OUT_FILE"; \
+	else \
+		echo "❌ Error during SOPS encryption."; \
+		rm -f "$$OUT_FILE"; \
+		exit 1; \
+	fi
+
 shutdown-cluster:
 	@echo "⚠️ WARNING: This will shut down the entire Talos cluster on $(CONTROL_PLANE_IP)!"
 	@read -p "Are you sure you want to proceed? (yes/no): " CONFIRM; \
