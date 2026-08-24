@@ -6,8 +6,8 @@ SHELL := /bin/bash
 CONTROL_PLANE_IP ?= 192.168.178.101
 CLUSTER_NAME     ?= homelab
 DISK_NAME        ?= sda
-SCHEMATIC_ID     ?= 376567988ad370138ad8b2698212367b8edcb69b5fd68c80be1f2ec7d603b4ba
-TALOS_VERSION    ?= v1.13.8
+SCHEMATIC_ID     ?= 613e1592b2da41ae5e265e8789429f22e121aab91cb4deb6bc3c0b6262961245
+TALOS_VERSION    ?= v1.13.9
 
 # Paths & Directories
 OUTPUT_DIR       ?= ./talos
@@ -29,7 +29,7 @@ setup-talos:
 	talosctl gen config $(CLUSTER_NAME) https://$(CONTROL_PLANE_IP):6443 \
 		--install-disk /dev/$(DISK_NAME) \
 		--install-image factory.talos.dev/installer-secureboot/$(SCHEMATIC_ID):$(TALOS_VERSION) \
-		--config-patch-control-plane 'cluster: {allowSchedulingOnControlPlanes: true}' \
+		--config-patch @talos/patch.yaml \
 		--output-dir $(OUTPUT_DIR) \
 		--force
 		
@@ -54,7 +54,7 @@ setup-talos:
 	
 	@echo "⏳ Starting bootstrap process..."
 	talosctl bootstrap --nodes $(CONTROL_PLANE_IP) --talosconfig=$(TALOSCONFIG)
-	
+
 	@echo "🩺 Checking cluster health..."
 	talosctl --nodes $(CONTROL_PLANE_IP) --talosconfig=$(TALOSCONFIG) health
 	
