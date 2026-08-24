@@ -51,7 +51,7 @@ service:
 providers:
   kubernetesCRD:
     enabled: true
-    allowCrossNamespace: true
+    allowCrossNamespace: false
   kubernetesIngress:
     enabled: true
 

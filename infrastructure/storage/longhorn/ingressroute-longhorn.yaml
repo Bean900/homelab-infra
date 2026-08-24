@@ -13,7 +13,6 @@ spec:
         - name: longhorn-frontend
           port: 80
       middlewares:
-        - name: basic-auth
-          namespace: traefik   # Namespace eurer bestehenden middleware-basic-auth anpassen
+        - name: longhorn-dashboard-auth
   tls:
     secretName: longhorn-tls
