@@ -4,7 +4,7 @@ resources:
   - namespace.yaml
   - certificate-longhorn.yaml
   - ingressroute-longhorn.yaml
-  - middleware-longhorn-auth.yaml
+  - middleware-basic-auth.yaml
 helmCharts:
   - name: longhorn
     repo: https://charts.longhorn.io
