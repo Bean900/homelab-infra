@@ -39,6 +39,7 @@ setup-talos:
 	talosctl --talosconfig=$(TALOSCONFIG) config nodes $(CONTROL_PLANE_IP)
 	
 	@echo "⏳ Waiting for node API to become ready (node installation/reboot)..."
+	@sleep 5
 	@for i in $$(seq 1 30); do \
 		if talosctl version --nodes $(CONTROL_PLANE_IP) --talosconfig=$(TALOSCONFIG) >/dev/null 2>&1; then \
 			echo "✅ Node API is reachable!"; \
@@ -51,7 +52,7 @@ setup-talos:
 		echo "  Node not ready yet, retrying in 5s ($$i/30)..."; \
 		sleep 5; \
 	done
-	
+
 	@echo "⏳ Starting bootstrap process..."
 	talosctl bootstrap --nodes $(CONTROL_PLANE_IP) --talosconfig=$(TALOSCONFIG)
 
