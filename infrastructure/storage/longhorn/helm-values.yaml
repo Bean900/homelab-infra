@@ -1,0 +1,17 @@
+defaultSettings:
+  defaultReplicaCount: 1          # nur 1 Node -> mehr Replicas wären eh nur "degraded"
+  defaultDataLocality: disabled
+  createDefaultDiskLabeledNodes: true
+  replicaSoftAntiAffinity: true
+  storageMinimalAvailablePercentage: 10
+  # Backup-Ziel (Details siehe Abschnitt 6)
+  # backupTarget: "s3://<bucket-name>@garage/"
+  # backupTargetCredentialSecret: longhorn-backup-secret
+persistence:
+  defaultClass: true
+  defaultClassReplicaCount: 1
+  reclaimPolicy: Retain           # wichtig: PVC löschen != Daten weg, gerade während ihr Backup/Restore testet
+longhornUI:
+  replicas: 1
+longhornManager:
+  priorityClass: ""

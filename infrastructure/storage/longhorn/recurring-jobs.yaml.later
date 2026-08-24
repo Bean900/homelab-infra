@@ -1,0 +1,23 @@
+apiVersion: longhorn.io/v1beta2
+kind: RecurringJob
+metadata:
+  name: adguard-snapshot
+  namespace: longhorn-system
+spec:
+  cron: "0 */6 * * *"     # alle 6h ein lokales Snapshot
+  task: "snapshot"
+  groups: ["adguard"]
+  retain: 4
+  concurrency: 1
+---
+apiVersion: longhorn.io/v1beta2
+kind: RecurringJob
+metadata:
+  name: adguard-backup
+  namespace: longhorn-system
+spec:
+  cron: "0 3 * * *"       # täglich 03:00 Backup nach Garage
+  task: "backup"
+  groups: ["adguard"]
+  retain: 7
+  concurrency: 1

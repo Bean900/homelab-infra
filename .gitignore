@@ -63,3 +63,8 @@ charts/
 *.bak
 *.backup
 *.local.yaml
+
+# =========================
+# Secret / Sensitive files
+# =========================
+*\secret.yaml

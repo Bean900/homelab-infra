@@ -1,0 +1,16 @@
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: adguard
+  namespace: adguard
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`adguard.lab`)
+      kind: Rule
+      services:
+        - name: adguard-web     # Name eures bestehenden ClusterIP-Service für die Web-UI
+          port: 80
+  tls:
+    secretName: adguard-tls

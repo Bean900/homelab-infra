@@ -1,27 +1,21 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: adguard-service
+  name: adguard-dns
+  namespace: adguard
   annotations:
-    kube-vip.io/loadbalancerIPs: "192.168.178.62"
+    kube-vip.io/loadbalancerIPs: 192.168.178.99
 spec:
-  type: LoadBalancer  
+  type: LoadBalancer
+  externalTrafficPolicy: Local
   selector:
     app: adguard
   ports:
     - name: dns-udp
+      port: 53
       protocol: UDP
-      port: 53
-      targetPort: dns-udp
+      targetPort: 53
     - name: dns-tcp
-      protocol: TCP
       port: 53
-      targetPort: dns-tcp
-    - name: web-ui
       protocol: TCP
-      port: 80           
-      targetPort: web
-    - name: web-setup
-      protocol: TCP
-      port: 3000          
-      targetPort: web-alt
+      targetPort: 53

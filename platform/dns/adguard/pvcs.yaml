@@ -1,69 +1,29 @@
 apiVersion: v1
-kind: PersistentVolume
-metadata:
-  name: adguard-conf-pv
-spec:
-  capacity:
-    storage: 50Mi
-  volumeMode: Filesystem
-  accessModes:
-    - ReadWriteOnce
-  storageClassName: manual  
-  hostPath:
-    path: /var/adguard/conf
-    type: DirectoryOrCreate
-  nodeAffinity:
-    required:
-      nodeSelectorTerms:
-      - matchExpressions:
-        - key: kubernetes.io/hostname
-          operator: In
-          values:
-          - basepc 
----
-apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: adguard-conf-pvc
+  name: adguard-conf     # Namen an eure bestehende Datei anpassen
+  namespace: adguard
+  labels:
+    recurring-job-group.longhorn.io/adguard: enabled
 spec:
-  storageClassName: manual
   accessModes:
     - ReadWriteOnce
-  resources:
-    requests:
-      storage: 50Mi
----
-apiVersion: v1
-kind: PersistentVolume
-metadata:
-  name: adguard-work-pv
-spec:
-  capacity:
-    storage: 1Gi
-  volumeMode: Filesystem
-  accessModes:
-    - ReadWriteOnce
-  storageClassName: manual
-  hostPath:
-    path: /var/var/adguard/work
-    type: DirectoryOrCreate
-  nodeAffinity:
-    required:
-      nodeSelectorTerms:
-      - matchExpressions:
-        - key: kubernetes.io/hostname
-          operator: In
-          values:
-          - basepc 
----
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: adguard-work-pvc
-spec:
-  storageClassName: manual
-  accessModes:
-    - ReadWriteOnce
+  storageClassName: longhorn
   resources:
     requests:
       storage: 1Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: adguard-work
+  namespace: adguard
+  labels:
+    recurring-job-group.longhorn.io/adguard: enabled
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: longhorn
+  resources:
+    requests:
+      storage: 2Gi
