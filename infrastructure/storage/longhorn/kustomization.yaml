@@ -11,3 +11,10 @@ helmCharts:
     releaseName: longhorn
     namespace: longhorn-system
     valuesFile: helm-values.yaml
+patches:
+  - target:
+      kind: Job
+      name: longhorn-pre-upgrade
+    patch: |-
+      - op: remove
+        path: /metadata/annotations/helm.sh~1hook
