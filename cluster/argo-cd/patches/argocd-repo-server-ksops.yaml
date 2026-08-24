@@ -22,6 +22,16 @@ spec:
           volumeMounts:
             - name: custom-tools
               mountPath: /custom-tools
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 999
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
       containers:
         - name: argocd-repo-server
           env:
@@ -35,3 +45,10 @@ spec:
             - name: sops-age
               mountPath: /home/argocd/sops-age
               readOnly: true
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+        runAsGroup: 999
+        fsGroup: 999
+        seccompProfile:
+          type: RuntimeDefault

@@ -4,17 +4,3 @@ metadata:
   name: argocd-cm
 data:
   kustomize.buildOptions: "--enable-alpha-plugins --enable-exec --enable-helm"
-spec:
-  template:
-    spec:
-      initContainers:
-        - name: install-ksops
-          securityContext:
-            allowPrivilegeEscalation: false
-            runAsNonRoot: true
-            runAsUser: 999
-            capabilities:
-              drop:
-                - ALL
-            seccompProfile:
-              type: RuntimeDefault
