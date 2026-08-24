@@ -8,6 +8,8 @@ resources:
 - service.yaml
 - statefulset.yaml
 - pvcs.yaml
+- certificate-adguard.yaml
+- ingressroute-adguard.yaml
 
 generators:
 - secret-generator.yaml     
