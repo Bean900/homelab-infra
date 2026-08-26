@@ -161,10 +161,7 @@ traefik-secret:
 	@command -v kubectl >/dev/null 2>&1 || { echo "❌ Error: 'kubectl' is not installed."; exit 1; }
 	@[ -f .sops.yaml ] || { echo "❌ Error: No '.sops.yaml' found in root directory!"; exit 1; }
 
-	@# 2. Ensure target directory exists
-	@mkdir -p platform/traefik
-
-	@# 3. Prompt user input, generate YAML, and stream to SOPS
+	@# 2. Prompt user input, generate YAML, and stream to SOPS
 	@read -p "Enter desired username: " UNAME; \
 	read -s -p "Enter desired password: " PASS; echo ""; \
 	if [ -z "$$UNAME" ] || [ -z "$$PASS" ]; then \
@@ -172,7 +169,7 @@ traefik-secret:
 		exit 1; \
 	fi; \
 	HASH=$$(htpasswd -Bnb "$$UNAME" "$$PASS" | tr -d '\n\r'); \
-	OUT_FILE="platform/traefik/secret-traefik-auth.enc.yaml"; \
+	OUT_FILE="platform/ingress/traefik/secret-traefik-auth.enc.yaml"; \
 	if kubectl create secret generic traefik-auth \
 		--namespace traefik \
 		--from-literal=users="$$HASH" \
@@ -193,10 +190,7 @@ longhorn-secret:
 	@command -v kubectl >/dev/null 2>&1 || { echo "❌ Error: 'kubectl' is not installed."; exit 1; }
 	@[ -f .sops.yaml ] || { echo "❌ Error: No '.sops.yaml' found in root directory!"; exit 1; }
 
-	@# 2. Ensure target directory exists
-	@mkdir -p infrastructure/storage/longhorn
-
-	@# 3. Prompt user input, generate YAML, and stream to SOPS
+	@# 2. Prompt user input, generate YAML, and stream to SOPS
 	@read -p "Enter desired username: " UNAME; \
 	read -s -p "Enter desired password: " PASS; echo ""; \
 	if [ -z "$$UNAME" ] || [ -z "$$PASS" ]; then \
