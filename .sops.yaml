@@ -3,4 +3,4 @@ creation_rules:
     encrypted_regex: ^(data|stringData|crt|key|secret|secretboxEncryptionSecret|id|token)$
     key_groups:
       - age:
-          - "age1pszj5xvk248evsdmj5epsz89nw7a2utuareefkwvg8x6rayvny5s2at4aj"
+          - "age1ztxdvvz40vgyyskexhl26plh37rn8axeahsfh49tqkwvy8vv7f4st8kcw5"
