@@ -1,6 +1,6 @@
 SHELL := /bin/bash
 
-.PHONY: setup-talos gitops-init gitops-patch get-argocd-password init-security
+.PHONY: setup-talos gitops-init gitops-patch get-argocd-password init-security sops-encrypt sops-decrypt traefik-secret longhorn-secret shutdown-cluster
 
 # Node & Cluster Configuration
 CONTROL_PLANE_IP ?= 192.168.178.101
@@ -15,6 +15,17 @@ TALOSCONFIG      ?= $(OUTPUT_DIR)/talosconfig
 KUBECONFIG       ?= $(OUTPUT_DIR)/kubeconfig
 SOPS_AGE_DIR     ?= $(HOME)/.config/sops/age
 SOPS_AGE_KEY     ?= $(SOPS_AGE_DIR)/keys.txt
+
+# SOPS / Secrets Configuration
+# Sorgt dafuer, dass sops IMMER den Key aus SOPS_AGE_KEY verwendet - auch wenn
+# SOPS_AGE_DIR/SOPS_AGE_KEY vom Default abweichend gesetzt werden. Ohne dieses
+# export faellt sops still auf seinen eigenen Default-Pfad zurueck, sobald der
+# eigentliche Key woanders liegt.
+export SOPS_AGE_KEY_FILE := $(SOPS_AGE_KEY)
+# Dateien ohne .yaml/.yml-Endung (kubeconfig, talosconfig) erkennt sops nicht
+# als YAML und verschluesselt sie stattdessen komplett als Binaerblob - das
+# ist beabsichtigt und schuetzt den Inhalt vollstaendig.
+SOPS_MANAGED_FILES ?= talos/controlplane.yaml talos/kubeconfig talos/talosconfig talos/worker.yaml platform/dns/adguard/secret.yaml
 
 setup-talos:
 	@echo "🔍 Checking if disk /dev/$(DISK_NAME) exists on $(CONTROL_PLANE_IP)..."
@@ -90,7 +101,7 @@ init-security:
 	fi; \
 	echo "✅ Extracted public key: $$PUBKEY"; \
 	echo "⚙️ Creating .sops.yaml..."; \
-	printf "creation_rules:\n  - path_regex: \\.yaml$$\n    encrypted_regex: ^(data|stringData|crt|key|secret|secretboxEncryptionSecret|id|token)$$\n    key_groups:\n      - age:\n          - \"%s\"\n" "$$PUBKEY" > .sops.yaml
+	printf "creation_rules:\n  - path_regex: .*(yaml|yml|kubeconfig|talosconfig)$$\n    encrypted_regex: ^(data|stringData|crt|key|secret|secretboxEncryptionSecret|id|token)$$\n    key_groups:\n      - age:\n          - \"%s\"\n" "$$PUBKEY" > .sops.yaml
 	
 	@echo "🎉 Security setup complete! Key saved to $(SOPS_AGE_KEY) and .sops.yaml created."
 
@@ -154,63 +165,87 @@ get-argocd-password:
 	@echo -n "Password: "
 	@kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" --kubeconfig $(KUBECONFIG) | base64 -d; echo ""
 
-traefik-secret:
-	@# 1. Check dependencies & prerequisites
-	@command -v htpasswd >/dev/null 2>&1 || { echo "❌ Error: 'htpasswd' (apache2-utils) is not installed."; exit 1; }
-	@command -v sops >/dev/null 2>&1 || { echo "❌ Error: 'sops' CLI is not installed."; exit 1; }
-	@command -v kubectl >/dev/null 2>&1 || { echo "❌ Error: 'kubectl' is not installed."; exit 1; }
-	@[ -f .sops.yaml ] || { echo "❌ Error: No '.sops.yaml' found in root directory!"; exit 1; }
+# Gemeinsame Logik fuer traefik-secret & longhorn-secret: erzeugt ein
+# htpasswd-Secret und verschluesselt es direkt mit SOPS. Aufruf jeweils via
+# $(call generate-htpasswd-secret,<secret-name>,<namespace>,<output-datei>)
+define generate-htpasswd-secret
+@command -v htpasswd >/dev/null 2>&1 || { echo "❌ Error: 'htpasswd' (apache2-utils) is not installed."; exit 1; }
+@command -v sops >/dev/null 2>&1 || { echo "❌ Error: 'sops' CLI is not installed."; exit 1; }
+@command -v kubectl >/dev/null 2>&1 || { echo "❌ Error: 'kubectl' is not installed."; exit 1; }
+@[ -f .sops.yaml ] || { echo "❌ Error: No '.sops.yaml' found in root directory!"; exit 1; }
+@read -p "Enter desired username: " UNAME; \
+read -s -p "Enter desired password: " PASS; echo ""; \
+if [ -z "$$UNAME" ] || [ -z "$$PASS" ]; then \
+	echo "❌ Error: Username and password cannot be empty."; \
+	exit 1; \
+fi; \
+HASH=$$(htpasswd -Bnb "$$UNAME" "$$PASS" | tr -d '\n\r'); \
+OUT_FILE="$(3)"; \
+mkdir -p "$$(dirname "$$OUT_FILE")"; \
+if kubectl create secret generic $(1) \
+	--namespace $(2) \
+	--from-literal=users="$$HASH" \
+	--dry-run=client -o yaml | \
+	sops --filename-override "$$OUT_FILE" --encrypt /dev/stdin > "$$OUT_FILE"; then \
+	echo "✅ Secret successfully encrypted and saved to:"; \
+	echo "   $$OUT_FILE"; \
+else \
+	echo "❌ Error during SOPS encryption."; \
+	rm -f "$$OUT_FILE"; \
+	exit 1; \
+fi
+endef
 
-	@# 2. Prompt user input, generate YAML, and stream to SOPS
-	@read -p "Enter desired username: " UNAME; \
-	read -s -p "Enter desired password: " PASS; echo ""; \
-	if [ -z "$$UNAME" ] || [ -z "$$PASS" ]; then \
-		echo "❌ Error: Username and password cannot be empty."; \
-		exit 1; \
-	fi; \
-	HASH=$$(htpasswd -Bnb "$$UNAME" "$$PASS" | tr -d '\n\r'); \
-	OUT_FILE="platform/ingress/traefik/secret-traefik-auth.enc.yaml"; \
-	if kubectl create secret generic traefik-auth \
-		--namespace traefik \
-		--from-literal=users="$$HASH" \
-		--dry-run=client -o yaml | \
-		sops --filename-override "$$OUT_FILE" --encrypt /dev/stdin > "$$OUT_FILE"; then \
-		echo "✅ Secret successfully encrypted and saved to:"; \
-		echo "   $$OUT_FILE"; \
-	else \
-		echo "❌ Error during SOPS encryption."; \
-		rm -f "$$OUT_FILE"; \
-		exit 1; \
-	fi
+traefik-secret:
+	$(call generate-htpasswd-secret,traefik-auth,traefik,platform/ingress/traefik/secret-traefik-auth.enc.yaml)
 
 longhorn-secret:
-	@# 1. Check dependencies & prerequisites
-	@command -v htpasswd >/dev/null 2>&1 || { echo "❌ Error: 'htpasswd' (apache2-utils) is not installed."; exit 1; }
-	@command -v sops >/dev/null 2>&1 || { echo "❌ Error: 'sops' CLI is not installed."; exit 1; }
-	@command -v kubectl >/dev/null 2>&1 || { echo "❌ Error: 'kubectl' is not installed."; exit 1; }
-	@[ -f .sops.yaml ] || { echo "❌ Error: No '.sops.yaml' found in root directory!"; exit 1; }
+	$(call generate-htpasswd-secret,longhorn-auth,longhorn-system,infrastructure/storage/longhorn/secret-longhorn-auth.enc.yaml)
 
-	@# 2. Prompt user input, generate YAML, and stream to SOPS
-	@read -p "Enter desired username: " UNAME; \
-	read -s -p "Enter desired password: " PASS; echo ""; \
-	if [ -z "$$UNAME" ] || [ -z "$$PASS" ]; then \
-		echo "❌ Error: Username and password cannot be empty."; \
-		exit 1; \
-	fi; \
-	HASH=$$(htpasswd -Bnb "$$UNAME" "$$PASS" | tr -d '\n\r'); \
-	OUT_FILE="infrastructure/storage/longhorn/secret-longhorn-auth.enc.yaml"; \
-	if kubectl create secret generic longhorn-auth \
-		--namespace longhorn-system \
-		--from-literal=users="$$HASH" \
-		--dry-run=client -o yaml | \
-		sops --filename-override "$$OUT_FILE" --encrypt /dev/stdin > "$$OUT_FILE"; then \
-		echo "✅ Secret successfully encrypted and saved to:"; \
-		echo "   $$OUT_FILE"; \
-	else \
-		echo "❌ Error during SOPS encryption."; \
-		rm -f "$$OUT_FILE"; \
-		exit 1; \
-	fi
+sops-encrypt:
+	@echo "🔒 Encrypting configuration files (plain -> .enc)..."
+	@command -v sops >/dev/null 2>&1 || { echo "❌ Error: 'sops' CLI is not installed."; exit 1; }
+	@[ -f .sops.yaml ] || { echo "❌ Error: No '.sops.yaml' found in root directory!"; exit 1; }
+	
+	@FILES="talos/controlplane.yaml talos/kubeconfig talos/talosconfig talos/worker.yaml platform/dns/adguard/secret.yaml"; \
+	for file in $$FILES; do \
+		if [[ "$$file" == *.yaml ]]; then \
+			enc="$${file%.yaml}.enc.yaml"; \
+		elif [[ "$$file" == *.yml ]]; then \
+			enc="$${file%.yml}.enc.yml"; \
+		else \
+			enc="$$file.enc"; \
+		fi; \
+		if [ -f "$$file" ]; then \
+			echo "🔄 Encrypting $$file -> $$enc..."; \
+			sops --encrypt "$$file" > "$$enc" || echo "⚠️ Warning: Failed to encrypt $$file."; \
+		else \
+			echo "⚠️ Warning: Plain file $$file not found. Skipping."; \
+		fi; \
+	done
+	@echo "✅ Encryption process finished."
+
+sops-decrypt:
+	@echo "🔓 Decrypting configuration files (.enc -> plain)..."
+	@command -v sops >/dev/null 2>&1 || { echo "❌ Error: 'sops' CLI is not installed."; exit 1; }
+	
+	@FILES="talos/controlplane.yaml talos/kubeconfig talos/talosconfig talos/worker.yaml platform/dns/adguard/secret.yaml"; \
+	for file in $$FILES; do \
+		if [[ "$$file" == *.yaml ]]; then \
+			enc="$${file%.yaml}.enc.yaml"; \
+		elif [[ "$$file" == *.yml ]]; then \
+			enc="$${file%.yml}.enc.yml"; \
+		else \
+			enc="$$file.enc"; \
+		fi; \
+		if [ -f "$$enc" ]; then \
+			echo "🔄 Decrypting $$enc -> $$file..."; \
+			sops --decrypt "$$enc" > "$$file" || echo "⚠️ Warning: Failed to decrypt $$enc."; \
+		else \
+			echo "⚠️ Warning: Encrypted file $$enc not found. Skipping."; \
+		fi; \
+	done
+	@echo "✅ Decryption process finished."
 
 shutdown-cluster:
 	@echo "⚠️ WARNING: This will shut down the entire Talos cluster on $(CONTROL_PLANE_IP)!"

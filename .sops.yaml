@@ -1,5 +1,5 @@
 creation_rules:
-  - path_regex: \.yaml$
+  - path_regex: .*(yaml|yml|kubeconfig|talosconfig)
     encrypted_regex: ^(data|stringData|crt|key|secret|secretboxEncryptionSecret|id|token)$
     key_groups:
       - age:

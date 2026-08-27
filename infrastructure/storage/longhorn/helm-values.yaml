@@ -1,7 +1,7 @@
 defaultSettings:
   defaultReplicaCount: 1          # nur 1 Node -> mehr Replicas wären eh nur "degraded"
   defaultDataLocality: disabled
-  createDefaultDiskLabeledNodes: true
+  createDefaultDiskLabeledNodes: false
   replicaSoftAntiAffinity: true
   storageMinimalAvailablePercentage: 10
   # Backup-Ziel (Details siehe Abschnitt 6)
