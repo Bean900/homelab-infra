@@ -1,0 +1,14 @@
+apiVersion: v1alpha1
+kind: HostnameConfig
+auto: "off"
+hostname: "nipogi"
+---
+apiVersion: v1alpha1
+kind: KubeletConfig
+$patch: delete
+---
+apiVersion: v1alpha1
+kind: KubeNodeConfig
+taints:
+  node-role.kubernetes.io/control-plane:
+    $patch: delete

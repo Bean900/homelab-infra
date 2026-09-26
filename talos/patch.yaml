@@ -1,5 +1,12 @@
-cluster:
-  allowSchedulingOnControlPlanes: true
+apiVersion: v1alpha1
+kind: HostnameConfig
+auto: "off"
+hostname: "HP260G4"
+---
+apiVersion: v1alpha1
+kind: KubeletConfig
+$patch: delete
+---
 machine:
   disks:
     - device: /dev/nvme0n1
@@ -16,6 +23,7 @@ machine:
           - rw
 ---
 apiVersion: v1alpha1
-kind: HostnameConfig
-hostname: HP260G4
-auto: off
+kind: KubeNodeConfig
+taints:
+  node-role.kubernetes.io/control-plane:
+    $patch: delete

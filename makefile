@@ -1,31 +1,55 @@
 SHELL := /bin/bash
 
-.PHONY: setup-talos gitops-init gitops-patch get-argocd-password init-security sops-encrypt sops-decrypt traefik-secret longhorn-secret shutdown-cluster
+.PHONY: setup-node1 setup-node2 setup-talos gitops-init gitops-patch get-argocd-password init-security sops-encrypt sops-decrypt traefik-secret longhorn-secret shutdown-cluster export-secrets join-controlplane
 
 # Node & Cluster Configuration
 CONTROL_PLANE_IP ?= 192.168.178.101
 CLUSTER_NAME     ?= homelab
 DISK_NAME        ?= sda
 SCHEMATIC_ID     ?= 613e1592b2da41ae5e265e8789429f22e121aab91cb4deb6bc3c0b6262961245
-TALOS_VERSION    ?= v1.13.9
+TALOS_VERSION    ?= v1.14.1
+
+# Zweiter Node (NiPoGi) - Defaults für "make join-controlplane" / "make setup-node2"
+NODE_IP          ?= 192.168.178.102
+NODE_HOSTNAME    ?= nipogi
+NODE_DISK        ?= nvme0n1
+NODE_PATCH       ?= talos/patch-nipogi.yaml
 
 # Paths & Directories
 OUTPUT_DIR       ?= ./talos
 TALOSCONFIG      ?= $(OUTPUT_DIR)/talosconfig
 KUBECONFIG       ?= $(OUTPUT_DIR)/kubeconfig
+SECRETS_FILE     ?= $(OUTPUT_DIR)/secrets.yaml
 SOPS_AGE_DIR     ?= $(HOME)/.config/sops/age
 SOPS_AGE_KEY     ?= $(SOPS_AGE_DIR)/keys.txt
 
 # SOPS / Secrets Configuration
-# Sorgt dafuer, dass sops IMMER den Key aus SOPS_AGE_KEY verwendet - auch wenn
-# SOPS_AGE_DIR/SOPS_AGE_KEY vom Default abweichend gesetzt werden. Ohne dieses
-# export faellt sops still auf seinen eigenen Default-Pfad zurueck, sobald der
-# eigentliche Key woanders liegt.
 export SOPS_AGE_KEY_FILE := $(SOPS_AGE_KEY)
-# Dateien ohne .yaml/.yml-Endung (kubeconfig, talosconfig) erkennt sops nicht
-# als YAML und verschluesselt sie stattdessen komplett als Binaerblob - das
-# ist beabsichtigt und schuetzt den Inhalt vollstaendig.
-SOPS_MANAGED_FILES ?= talos/controlplane.yaml talos/kubeconfig talos/talosconfig talos/worker.yaml platform/dns/adguard/secret.yaml
+SOPS_MANAGED_FILES ?= talos/controlplane.yaml talos/kubeconfig talos/talosconfig talos/worker.yaml talos/secrets.yaml talos/nipogi/controlplane.yaml talos/nipogi/talosconfig platform/dns/adguard/secret.yaml
+
+# ==========================================
+# W O R K F L O W   T A R G E T S
+# ==========================================
+
+# 1. Schritt: Node 1 komplett aufsetzen, Secrets exportieren und alles verschlüsseln
+setup-node1: setup-talos export-secrets sops-encrypt
+	@echo "🎉 Node 1 (.101) Setup, Secret-Export und Verschlüsselung erfolgreich abgeschlossen."
+	@echo "👉 Nächster Schritt: 'make init-security' (falls noch kein Age-Key existiert) oder 'make gitops-init'."
+
+# 2. Schritt: Node 2 hinzufügen (entschlüsselt zuerst die nötigen Files, joint, und verschlüsselt neu)
+setup-node2:
+	@echo "🔓 Stelle sicher, dass die Secrets entschlüsselt vorliegen..."
+	@$(MAKE) sops-decrypt
+	@echo "🚀 Füge den zweiten Node (.102) hinzu..."
+	@$(MAKE) join-controlplane
+	@echo "🔒 Verschlüssele die neu generierten Konfigurationsdateien..."
+	@$(MAKE) sops-encrypt
+	@echo "🎉 Node 2 (.102) erfolgreich zum Cluster hinzugefügt und Konfiguration verschlüsselt!"
+	@echo "📦 Führe nun 'git add' für die .enc.yaml Dateien aus, um sie zu committen."
+
+# ==========================================
+# C O R E   T A R G E T S
+# ==========================================
 
 setup-talos:
 	@echo "🔍 Checking if disk /dev/$(DISK_NAME) exists on $(CONTROL_PLANE_IP)..."
@@ -40,7 +64,7 @@ setup-talos:
 	talosctl gen config $(CLUSTER_NAME) https://$(CONTROL_PLANE_IP):6443 \
 		--install-disk /dev/$(DISK_NAME) \
 		--install-image factory.talos.dev/installer-secureboot/$(SCHEMATIC_ID):$(TALOS_VERSION) \
-		--config-patch @talos/patch.yaml \
+		--config-patch-control-plane @talos/patch.yaml \
 		--output-dir $(OUTPUT_DIR) \
 		--force
 		
@@ -50,7 +74,7 @@ setup-talos:
 	talosctl --talosconfig=$(TALOSCONFIG) config nodes $(CONTROL_PLANE_IP)
 	
 	@echo "⏳ Waiting for node API to become ready (node installation/reboot)..."
-	@sleep 5
+	@sleep 120
 	@for i in $$(seq 1 30); do \
 		if talosctl version --nodes $(CONTROL_PLANE_IP) --talosconfig=$(TALOSCONFIG) >/dev/null 2>&1; then \
 			echo "✅ Node API is reachable!"; \
@@ -76,6 +100,66 @@ setup-talos:
 		--endpoints $(CONTROL_PLANE_IP) \
 		--talosconfig=$(TALOSCONFIG)
 	@echo "🎉 Cluster setup complete!"
+
+export-secrets:
+	@echo "🔍 Checking for existing controlplane.yaml..."
+	@if [ ! -f "$(OUTPUT_DIR)/controlplane.yaml" ]; then \
+		echo "❌ Error: $(OUTPUT_DIR)/controlplane.yaml not found!"; \
+		exit 1; \
+	fi
+	@if [ -f "$(SECRETS_FILE)" ]; then \
+		echo "⚠️  $(SECRETS_FILE) existiert bereits - wird NICHT überschrieben."; \
+		exit 0; \
+	fi
+	@echo "🔑 Extracting cluster secrets bundle..."
+	talosctl gen secrets --from-controlplane-config $(OUTPUT_DIR)/controlplane.yaml -o $(SECRETS_FILE) --force
+	@echo "✅ Secrets bundle written to $(SECRETS_FILE)."
+
+join-controlplane:
+	@echo "🔍 Checking prerequisites for Node 2..."
+	@if [ ! -f "$(SECRETS_FILE)" ]; then \
+		echo "❌ Error: $(SECRETS_FILE) nicht gefunden! Erst 'make export-secrets' ausführen."; \
+		exit 1; \
+	fi
+	@if [ ! -f "$(NODE_PATCH)" ]; then \
+		echo "❌ Error: Patch-Datei $(NODE_PATCH) nicht gefunden!"; \
+		exit 1; \
+	fi
+	@echo "🔍 Checking if disk /dev/$(NODE_DISK) exists on $(NODE_IP)..."
+	@if ! talosctl get disks --insecure --nodes $(NODE_IP) | grep -q "$(NODE_DISK)"; then \
+		echo "❌ Error: Disk $(NODE_DISK) not found on $(NODE_IP)! Aborting."; \
+		exit 1; \
+	fi
+	@echo "✅ Disk $(NODE_DISK) found."
+
+	@echo "⚙️ Generating control plane configuration for $(NODE_HOSTNAME) in $(OUTPUT_DIR)/$(NODE_HOSTNAME)..."
+	@mkdir -p $(OUTPUT_DIR)/$(NODE_HOSTNAME)
+	talosctl gen config $(CLUSTER_NAME) https://$(CONTROL_PLANE_IP):6443 \
+		--with-secrets $(SECRETS_FILE) \
+		--install-disk /dev/$(NODE_DISK) \
+		--install-image factory.talos.dev/installer-secureboot/$(SCHEMATIC_ID):$(TALOS_VERSION) \
+		--config-patch-control-plane @$(NODE_PATCH) \
+		--output-dir $(OUTPUT_DIR)/$(NODE_HOSTNAME) \
+		--output-types controlplane,talosconfig \
+		--force
+
+	@echo "🚀 Applying configuration to $(NODE_IP)..."
+	talosctl apply-config --insecure --nodes $(NODE_IP) --file $(OUTPUT_DIR)/$(NODE_HOSTNAME)/controlplane.yaml
+	
+	@echo "🔄 Updating Talosconfig to include both nodes..."
+	talosctl --talosconfig=$(TALOSCONFIG) config endpoints $(CONTROL_PLANE_IP) $(NODE_IP)
+	talosctl --talosconfig=$(TALOSCONFIG) config nodes $(CONTROL_PLANE_IP) $(NODE_IP)
+
+	@echo "⏳ Warte, bis $(NODE_HOSTNAME) dem etcd-Cluster beigetreten ist (120s)..."
+	@sleep 120
+
+	@echo "🩺 Checking cluster health..."
+	talosctl --nodes $(CONTROL_PLANE_IP) --talosconfig=$(TALOSCONFIG) health
+	@echo "🎉 $(NODE_HOSTNAME) ist nun ein Control-Plane-Node."
+
+# ==========================================
+# S E C U R I T Y   &   S O P S
+# ==========================================
 
 init-security:
 	@echo "🔍 Checking for age-keygen binary..."
@@ -104,6 +188,55 @@ init-security:
 	printf "creation_rules:\n  - path_regex: .*(yaml|yml|kubeconfig|talosconfig)$$\n    encrypted_regex: ^(data|stringData|crt|key|secret|secretboxEncryptionSecret|id|token)$$\n    key_groups:\n      - age:\n          - \"%s\"\n" "$$PUBKEY" > .sops.yaml
 	
 	@echo "🎉 Security setup complete! Key saved to $(SOPS_AGE_KEY) and .sops.yaml created."
+
+sops-encrypt:
+	@echo "🔒 Encrypting configuration files (plain -> .enc)..."
+	@command -v sops >/dev/null 2>&1 || { echo "❌ Error: 'sops' CLI is not installed."; exit 1; }
+	@[ -f .sops.yaml ] || { echo "❌ Error: No '.sops.yaml' found in root directory!"; exit 1; }
+	
+	@FILES="$(SOPS_MANAGED_FILES)"; \
+	for file in $$FILES; do \
+		if [[ "$$file" == *.yaml ]]; then \
+			enc="$${file%.yaml}.enc.yaml"; \
+		elif [[ "$$file" == *.yml ]]; then \
+			enc="$${file%.yml}.enc.yml"; \
+		else \
+			enc="$$file.enc"; \
+		fi; \
+		if [ -f "$$file" ]; then \
+			echo "🔄 Encrypting $$file -> $$enc..."; \
+			sops --encrypt "$$file" > "$$enc" || echo "⚠️ Warning: Failed to encrypt $$file."; \
+		else \
+			echo "⚠️ Warning: Plain file $$file not found. Skipping."; \
+		fi; \
+	done
+	@echo "✅ Encryption process finished."
+
+sops-decrypt:
+	@echo "🔓 Decrypting configuration files (.enc -> plain)..."
+	@command -v sops >/dev/null 2>&1 || { echo "❌ Error: 'sops' CLI is not installed."; exit 1; }
+	
+	@FILES="$(SOPS_MANAGED_FILES)"; \
+	for file in $$FILES; do \
+		if [[ "$$file" == *.yaml ]]; then \
+			enc="$${file%.yaml}.enc.yaml"; \
+		elif [[ "$$file" == *.yml ]]; then \
+			enc="$${file%.yml}.enc.yml"; \
+		else \
+			enc="$$file.enc"; \
+		fi; \
+		if [ -f "$$enc" ]; then \
+			echo "🔄 Decrypting $$enc -> $$file..."; \
+			sops --decrypt "$$enc" > "$$file" || echo "⚠️ Warning: Failed to decrypt $$enc."; \
+		else \
+			echo "⚠️ Warning: Encrypted file $$enc not found. Skipping."; \
+		fi; \
+	done
+	@echo "✅ Decryption process finished."
+
+# ==========================================
+# G I T O P S   &   A P P S
+# ==========================================
 
 gitops-init:
 	@echo "🚀 Starting GitOps bootstrap..."
@@ -165,9 +298,6 @@ get-argocd-password:
 	@echo -n "Password: "
 	@kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" --kubeconfig $(KUBECONFIG) | base64 -d; echo ""
 
-# Gemeinsame Logik fuer traefik-secret & longhorn-secret: erzeugt ein
-# htpasswd-Secret und verschluesselt es direkt mit SOPS. Aufruf jeweils via
-# $(call generate-htpasswd-secret,<secret-name>,<namespace>,<output-datei>)
 define generate-htpasswd-secret
 @command -v htpasswd >/dev/null 2>&1 || { echo "❌ Error: 'htpasswd' (apache2-utils) is not installed."; exit 1; }
 @command -v sops >/dev/null 2>&1 || { echo "❌ Error: 'sops' CLI is not installed."; exit 1; }
@@ -201,51 +331,6 @@ traefik-secret:
 
 longhorn-secret:
 	$(call generate-htpasswd-secret,longhorn-auth,longhorn-system,infrastructure/storage/longhorn/secret-longhorn-auth.enc.yaml)
-
-sops-encrypt:
-	@echo "🔒 Encrypting configuration files (plain -> .enc)..."
-	@command -v sops >/dev/null 2>&1 || { echo "❌ Error: 'sops' CLI is not installed."; exit 1; }
-	@[ -f .sops.yaml ] || { echo "❌ Error: No '.sops.yaml' found in root directory!"; exit 1; }
-	
-	@FILES="talos/controlplane.yaml talos/kubeconfig talos/talosconfig talos/worker.yaml platform/dns/adguard/secret.yaml"; \
-	for file in $$FILES; do \
-		if [[ "$$file" == *.yaml ]]; then \
-			enc="$${file%.yaml}.enc.yaml"; \
-		elif [[ "$$file" == *.yml ]]; then \
-			enc="$${file%.yml}.enc.yml"; \
-		else \
-			enc="$$file.enc"; \
-		fi; \
-		if [ -f "$$file" ]; then \
-			echo "🔄 Encrypting $$file -> $$enc..."; \
-			sops --encrypt "$$file" > "$$enc" || echo "⚠️ Warning: Failed to encrypt $$file."; \
-		else \
-			echo "⚠️ Warning: Plain file $$file not found. Skipping."; \
-		fi; \
-	done
-	@echo "✅ Encryption process finished."
-
-sops-decrypt:
-	@echo "🔓 Decrypting configuration files (.enc -> plain)..."
-	@command -v sops >/dev/null 2>&1 || { echo "❌ Error: 'sops' CLI is not installed."; exit 1; }
-	
-	@FILES="talos/controlplane.yaml talos/kubeconfig talos/talosconfig talos/worker.yaml platform/dns/adguard/secret.yaml"; \
-	for file in $$FILES; do \
-		if [[ "$$file" == *.yaml ]]; then \
-			enc="$${file%.yaml}.enc.yaml"; \
-		elif [[ "$$file" == *.yml ]]; then \
-			enc="$${file%.yml}.enc.yml"; \
-		else \
-			enc="$$file.enc"; \
-		fi; \
-		if [ -f "$$enc" ]; then \
-			echo "🔄 Decrypting $$enc -> $$file..."; \
-			sops --decrypt "$$enc" > "$$file" || echo "⚠️ Warning: Failed to decrypt $$enc."; \
-		else \
-			echo "⚠️ Warning: Encrypted file $$enc not found. Skipping."; \
-		fi; \
-	done
-	@echo "✅ Decryption process finished."
 
 shutdown-cluster:
 	@echo "⚠️ WARNING: This will shut down the entire Talos cluster on $(CONTROL_PLANE_IP)!"

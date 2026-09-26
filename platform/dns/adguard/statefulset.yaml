@@ -15,7 +15,17 @@ spec:
         app: adguard
     spec:
       terminationGracePeriodSeconds: 10
-      # --- NEU: Init-Container zum Kopieren der Konfiguration ---
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              preference:
+                matchExpressions:
+                  - key: kubernetes.io/hostname
+                    operator: In
+                    values:
+                      - hp260g4
+      # --- Init-Container zum Kopieren der Konfiguration ---
       initContainers:
       - name: copy-config
         image: busybox:1.36
