@@ -13,8 +13,10 @@ Thumbs.db
 # =========================
 talos/kubeconfig
 talos/controlplane.yaml
+talos/nipogi/controlplane.yaml
 talos/worker.yaml
 talos/talosconfig
+talos/nipogi/talosconfig
 !talosconfig.enc.yaml
 
 # Talos generated secrets / state
