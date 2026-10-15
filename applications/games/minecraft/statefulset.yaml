@@ -1,0 +1,74 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: minecraft
+  labels:
+    app.kubernetes.io/name: minecraft
+spec:
+  serviceName: minecraft-headless
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: minecraft
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: minecraft
+    spec:
+      terminationGracePeriodSeconds: 120
+      containers:
+        - name: minecraft
+          image: itzg/minecraft-server:2026.9.2-java21
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: minecraft
+              containerPort: 25565
+              protocol: TCP
+          env:
+            # Only keep EULA=TRUE if you have read and accepted the Minecraft EULA.
+            - name: EULA
+              value: "TRUE"
+            - name: TYPE
+              value: "VANILLA"
+            # LATEST means the newest stable Minecraft server version is downloaded at startup.
+            # Set a specific version here if you prefer controlled server-version upgrades.
+            - name: VERSION
+              value: "LATEST"
+            - name: MEMORY
+              value: "2G"
+            - name: MAX_PLAYERS
+              value: "10"
+            - name: MOTD
+              value: "Minecraft Java Vanilla"
+            # RCON is not needed for this initial setup; keep it disabled.
+            - name: ENABLE_RCON
+              value: "false"
+          resources:
+            requests:
+              cpu: 500m
+              memory: 2500Mi
+            limits:
+              cpu: "2"
+              memory: 3Gi
+          startupProbe:
+            tcpSocket:
+              port: minecraft
+            periodSeconds: 10
+            failureThreshold: 60
+          readinessProbe:
+            tcpSocket:
+              port: minecraft
+            periodSeconds: 10
+            failureThreshold: 3
+          livenessProbe:
+            tcpSocket:
+              port: minecraft
+            periodSeconds: 30
+            failureThreshold: 3
+          volumeMounts:
+            - name: minecraft-data
+              mountPath: /data
+      volumes:
+        - name: minecraft-data
+          persistentVolumeClaim:
+            claimName: minecraft-data
