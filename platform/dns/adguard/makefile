@@ -12,5 +12,5 @@ secret: ## Verschlüsselt eine lokal erzeugte AdGuardHome.yaml als KSOPS-Secret
 		--from-file=AdGuardHome.yaml=./AdGuardHome.yaml \
 		--dry-run=client -o yaml > .tmp.yaml && \
 	sops --encrypt .tmp.yaml > secret.enc.yaml && \
-	rm -f .tmp.yaml AdGuardHome.yaml && \
+	rm -f .tmp.yaml && \
 	echo -e "\033[32mErfolg! 'secret.enc.yaml' enthält die verschlüsselte AdGuardHome.yaml.\033[0m"
