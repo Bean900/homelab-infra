@@ -6,7 +6,7 @@ SHELL := /bin/bash
 CONTROL_PLANE_IP ?= 192.168.178.101
 CLUSTER_NAME     ?= homelab
 DISK_NAME        ?= sda
-SCHEMATIC_ID     ?= 613e1592b2da41ae5e265e8789429f22e121aab91cb4deb6bc3c0b6262961245
+SCHEMATIC_ID     ?= 654f89bd9b7cc6fc59b0ef86b9eff3068e73154a09492c1b41800782747c84ce
 TALOS_VERSION    ?= v1.14.1
 
 # Zweiter Node (NiPoGi) - Defaults für "make join-controlplane" / "make setup-node2"

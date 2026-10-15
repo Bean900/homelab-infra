@@ -45,3 +45,11 @@ The cluster can be initialized using:
 
 ```bash
 ./bootstrap.sh
+
+## Talos plugins
+- siderolabs/intel-ucode
+- siderolabs/i915
+- siderolabs/realtek-firmware
+- siderolabs/iscsi-tools
+
+talosctl dashboard --nodes 192.168.178.102 --endpoints 192.168.178.102
