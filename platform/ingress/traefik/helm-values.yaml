@@ -34,6 +34,9 @@ ports:
     http:
       tls:
         enabled: true 
+  minecraft:
+    port: 25565
+    exposedPort: 25565
         
 tlsStore:
   default:

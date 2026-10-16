@@ -33,7 +33,7 @@ spec:
             # LATEST means the newest stable Minecraft server version is downloaded at startup.
             # Set a specific version here if you prefer controlled server-version upgrades.
             - name: VERSION
-              value: "LATEST"
+              value: "26.3"
             - name: MEMORY
               value: "2G"
             - name: MAX_PLAYERS

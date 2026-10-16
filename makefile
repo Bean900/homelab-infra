@@ -333,12 +333,12 @@ longhorn-secret:
 	$(call generate-htpasswd-secret,longhorn-auth,longhorn-system,infrastructure/storage/longhorn/secret-longhorn-auth.enc.yaml)
 
 shutdown-cluster:
-	@echo "⚠️ WARNING: This will shut down the entire Talos cluster on $(CONTROL_PLANE_IP)!"
+	@echo "⚠️ WARNING: This will shut down the entire Talos cluster on $(CONTROL_PLANE_IP),$(NODE_IP)!"
 	@read -p "Are you sure you want to proceed? (yes/no): " CONFIRM; \
 	if [ "$$CONFIRM" != "yes" ]; then \
 		echo "❌ Aborting shutdown."; \
 		exit 0; \
 	fi
 	@echo "⏳ Shutting down the cluster..."
-	talosctl --talosconfig=$(TALOSCONFIG) shutdown --nodes $(CONTROL_PLANE_IP) --force
+	talosctl --talosconfig=$(TALOSCONFIG) shutdown --nodes $(CONTROL_PLANE_IP),$(NODE_IP) --force
 	@echo "✅ Cluster shutdown command issued. Nodes will power off."
