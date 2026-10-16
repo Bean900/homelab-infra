@@ -8,3 +8,8 @@ resources:
   - statefulset.yaml
   - service.yaml
   - ingress.yaml
+
+configMapGenerator:
+  - name: minecraft-server-icon
+    files:
+      - server-icon.png=logo.png

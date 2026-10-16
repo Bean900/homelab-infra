@@ -36,7 +36,7 @@ spec:
             - name: MAX_PLAYERS
               value: "10"
             - name: MOTD
-              value: "Minecraft Java Vanilla"
+              value: "La ToNi winter 2026"
             - name: ENABLE_RCON
               value: "false"
           resources:
@@ -64,7 +64,13 @@ spec:
           volumeMounts:
             - name: minecraft-data
               mountPath: /data
+            - name: server-icon-mount
+              mountPath: /data/server-icon.png
+              subPath: server-icon.png
       volumes:
         - name: minecraft-data
           persistentVolumeClaim:
             claimName: minecraft-data
+        - name: server-icon-mount
+          configMap:
+            name: minecraft-server-icon
