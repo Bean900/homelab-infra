@@ -15,16 +15,9 @@ spec:
         app: adguard
     spec:
       terminationGracePeriodSeconds: 10
-      affinity:
-        nodeAffinity:
-          preferredDuringSchedulingIgnoredDuringExecution:
-            - weight: 100
-              preference:
-                matchExpressions:
-                  - key: kubernetes.io/hostname
-                    operator: In
-                    values:
-                      - hp260g4
+      # DNS muss immer verfuegbar sein -> fest auf den 24/7-Node (nicht nur "bevorzugt").
+      nodeSelector:
+        homelab.lab/role: always-on
       # --- Init-Container zum Kopieren der Konfiguration ---
       initContainers:
       - name: copy-config

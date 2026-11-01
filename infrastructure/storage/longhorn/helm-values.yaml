@@ -1,14 +1,37 @@
+# Storage-Konzept (Power-Management):
+#  - Daten liegen NUR auf dem 24/7-Node (HP260G4, Label node.longhorn.io/create-default-disk=true).
+#  - nipogi hat keine Longhorn-Disk. Er greift per iSCSI auf Volumes zu, die auf dem HP liegen.
+#    Dadurch gibt es beim Herunterfahren von nipogi nie degradierte Volumes / Replica-Rebuilds.
+#  - Deshalb nur 1 Replica (ein 2. Replica koennte nirgends liegen und waere dauerhaft "degraded").
+#    Redundanz -> ueber Backups (siehe recurring-jobs.yaml.later).
 defaultSettings:
-  createDefaultDiskLabeledNodes: false
-  defaultReplicaCount: 2
-  defaultDataLocality: best-effort
+  createDefaultDiskLabeledNodes: true
+  defaultReplicaCount: 1
+  defaultDataLocality: disabled
   replicaSoftAntiAffinity: true
   storageMinimalAvailablePercentage: 10
+  # Falls nipogi ungeplant ausfaellt (Stromausfall o.ae.): StatefulSet-/Deployment-Pods
+  # automatisch loeschen, damit sie auf dem HP neu starten koennen (sonst haengen sie in Terminating).
+  nodeDownPodDeletionPolicy: delete-both-statefulset-and-deployment-pod
+  # Longhorn-Systemkomponenten (instance-manager, engine-image, ...) muessen auch auf dem
+  # getainteten Burst-Node laufen, sonst koennen dort keine Volumes attached werden.
+  taintToleration: "homelab.lab/burst=true:NoSchedule"
 persistence:
   defaultClass: true
-  defaultClassReplicaCount: 2
-  reclaimPolicy: Retain          
+  defaultClassReplicaCount: 1
+  reclaimPolicy: Retain
 longhornUI:
   replicas: 1
 longhornManager:
   priorityClass: ""
+  tolerations:
+    - key: homelab.lab/burst
+      operator: Equal
+      value: "true"
+      effect: NoSchedule
+longhornDriver:
+  tolerations:
+    - key: homelab.lab/burst
+      operator: Equal
+      value: "true"
+      effect: NoSchedule

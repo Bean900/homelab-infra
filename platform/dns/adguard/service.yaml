@@ -19,3 +19,20 @@ spec:
       port: 53
       protocol: TCP
       targetPort: 53
+---
+# Interner Service fuer die Web-UI (wird von ingressroute-adguard.yaml referenziert;
+# fehlte bisher -> Traefik lieferte 503)
+apiVersion: v1
+kind: Service
+metadata:
+  name: adguard-web
+  namespace: adguard
+spec:
+  type: ClusterIP
+  selector:
+    app: adguard
+  ports:
+    - name: web
+      port: 80
+      protocol: TCP
+      targetPort: web

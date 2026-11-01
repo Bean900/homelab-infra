@@ -1,0 +1,13 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Der Power-Manager liest CPU/RAM der Nodes ueber die Metrics-API (metrics.k8s.io).
+namespace: kube-system
+
+helmCharts:
+  - name: metrics-server
+    repo: https://kubernetes-sigs.github.io/metrics-server/
+    version: "3.13.0"
+    releaseName: metrics-server
+    namespace: kube-system
+    valuesFile: helm-values.yaml

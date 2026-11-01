@@ -2,7 +2,10 @@
 # https://github.com/traefik/traefik-helm-chart/blob/master/traefik/values.yaml
 
 deployment:
-  replicas: 2 # HA: 2 Pods für rolling updates ohne Downtime
+  # 2 Pods fuer Rolling Updates ohne Downtime. Beide laufen auf dem HP (nipogi ist getainted,
+  # Traefik hat keine Toleration). Minecraft wird NICHT ueber Traefik geroutet, sondern direkt
+  # per kube-vip LoadBalancer (applications/games/minecraft/service.yaml).
+  replicas: 2
 
 podDisruptionBudget:
   enabled: true
@@ -34,10 +37,6 @@ ports:
     http:
       tls:
         enabled: true 
-  minecraft:
-    port: 25565
-    exposedPort: 25565
-        
 tlsStore:
   default:
     defaultCertificate:

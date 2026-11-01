@@ -3,8 +3,6 @@ kind: Application
 metadata:
   name: root-app
   namespace: argocd 
-  annotations:
-    kube-vip.io/loadbalancerIPs: "192.168.178.100"
 spec:
   project: default
   source:

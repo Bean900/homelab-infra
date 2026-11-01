@@ -1,0 +1,17 @@
+# Talos-Kubelets nutzen standardmaessig selbstsignierte Serving-Zertifikate
+# -> ohne diese Option kann metrics-server die Kubelets nicht scrapen.
+# (Sauberere Alternative: serverTLSBootstrap im Kubelet + kubelet-serving-cert-approver.)
+args:
+  - --kubelet-insecure-tls
+  - --kubelet-preferred-address-types=InternalIP
+
+replicas: 1
+
+# Muss auf dem 24/7-Node laufen. Keine Toleration fuer den Burst-Node -> automatisch HP.
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 200m
+    memory: 128Mi

@@ -1,55 +1,47 @@
 # homelab-infra
 
-This repository defines the complete infrastructure of my Kubernetes-based homelab.
+Declarative GitOps definition of my Talos Linux / Kubernetes homelab (Argo CD).
 
-It follows a fully declarative GitOps approach using Argo CD and is designed to be reproducible from scratch on a multi-node cluster powered by Talos Linux.
+## Cluster
 
-## Goals
+| Node | Role | Power |
+|---|---|---|
+| HP260G4 (`192.168.178.101`) | Control-Plane + Worker, all always-on workloads, Longhorn storage | 24/7 |
+| nipogi (`192.168.178.102`) | Worker for heavy workloads (e.g. Minecraft) | started on demand, powered off via smart plug when idle |
 
-- Fully reproducible cluster setup ("from zero to running")
-- Strict separation of:
-  - Infrastructure (cluster + platform)
-  - Applications
-- Public repositories without exposing secrets
-- Production-grade architecture principles applied to a homelab
+Details, setup order and operation: **[docs/POWER-MANAGEMENT.md](docs/POWER-MANAGEMENT.md)**
 
-## Architecture Overview
+## Repository layout
 
-This repository is structured into four main layers:
+- `talos/` - Talos machine config patches (`patch.yaml` = HP, `patch-nipogi.yaml` = nipogi worker); generated configs are SOPS-encrypted
+- `cluster/` - Argo CD root app + ApplicationSets (one per layer)
+- `infrastructure/` - kube-vip, Longhorn, metrics-server
+- `platform/` - Traefik, cert-manager, AdGuard, power-manager
+- `applications/` - Minecraft, Home Assistant
 
-- `bootstrap/`  
-  Initial cluster provisioning (Talos Linux + Argo CD installation)
+Every directory two levels below `infrastructure/`, `platform/` and `applications/` becomes one Argo CD application
+(see `cluster/applicationsets/`).
 
-- `clusters/`  
-  Entry point for GitOps (root application)
-
-- `platform/`  
-  Shared infrastructure components (e.g. ingress, storage, secrets)
-
-- `apps/`  
-  Application deployments (Argo CD Applications referencing external repos)
-
-- `projects/`  
-  Argo CD access and security boundaries
-
-## Key Principles
-
-- Git is the single source of truth
-- No secrets stored in this repository
-- Applications are managed in separate repositories
-- Deployments are automated via Argo CD
-
-## Bootstrap
-
-The cluster can be initialized using:
+## Quick start (from scratch)
 
 ```bash
-./bootstrap.sh
+make init-security     # age key + .sops.yaml (once)
+make setup-node1       # HP260G4: control plane
+make gitops-init       # Argo CD + root app
+make setup-node2       # nipogi: worker
+git add -A && git commit -m "cluster" && git push
+```
 
-## Talos plugins
+Then set up Home Assistant and the Power-Manager token (see docs).
+
+## Key principles
+
+- Git is the single source of truth, secrets only SOPS-encrypted (age)
+- Pods run on the always-on node by default; heavy workloads opt in via toleration + label
+
+## Talos extensions (schematic)
+
 - siderolabs/intel-ucode
 - siderolabs/i915
 - siderolabs/realtek-firmware
 - siderolabs/iscsi-tools
-
-talosctl dashboard --nodes 192.168.178.102 --endpoints 192.168.178.102

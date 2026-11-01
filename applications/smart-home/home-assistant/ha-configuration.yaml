@@ -1,0 +1,15 @@
+# Start-Konfiguration fuer Home Assistant hinter Traefik.
+# Wird nur kopiert, wenn /config/configuration.yaml noch nicht existiert.
+default_config:
+
+http:
+  # Ohne diesen Block lehnt Home Assistant Anfragen hinter einem Reverse-Proxy mit "400 Bad Request" ab.
+  use_x_forwarded_for: true
+  trusted_proxies:
+    - 10.244.0.0/16   # Pod-Netz (Traefik) - bei anderem Pod-CIDR anpassen (talosctl: cluster.network.podSubnets)
+    - 127.0.0.1
+    - ::1
+
+automation: !include automations.yaml
+script: !include scripts.yaml
+scene: !include scenes.yaml

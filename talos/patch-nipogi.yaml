@@ -1,3 +1,10 @@
+# ============================================================
+# nipogi - reiner WORKER (kein Control-Plane, kein etcd!)
+#
+# Warum Worker: Mit 2 Control-Plane-Nodes hat etcd kein Quorum mehr,
+# sobald einer ausgeschaltet wird. nipogi wird aber bei geringer Last
+# abgeschaltet -> er darf nie Teil von etcd/Control-Plane sein.
+# ============================================================
 apiVersion: v1alpha1
 kind: HostnameConfig
 auto: "off"
@@ -7,8 +14,24 @@ apiVersion: v1alpha1
 kind: KubeletConfig
 $patch: delete
 ---
+machine:
+  kubelet:
+    # Longhorn braucht den Mount auf jedem Node, der Volumes attachen soll.
+    # (nipogi hat selbst keine Longhorn-Disk, er greift per iSCSI auf HP-Volumes zu.)
+    extraMounts:
+      - destination: /var/lib/longhorn
+        type: bind
+        source: /var/lib/longhorn
+        options:
+          - bind
+          - rshared
+          - rw
+---
 apiVersion: v1alpha1
 kind: KubeNodeConfig
+labels:
+  homelab.lab/role: burst
+# Taint wird nur bei der ERSTEN Registrierung am Cluster gesetzt (NodeRestriction).
+# Danach nur per "kubectl taint" aenderbar. Ohne Toleration landet hier kein Pod.
 taints:
-  node-role.kubernetes.io/control-plane:
-    $patch: delete
+  homelab.lab/burst: "true:NoSchedule"

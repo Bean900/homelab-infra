@@ -1,0 +1,24 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: power-manager
+
+resources:
+  - namespace.yaml
+  - rbac.yaml
+  - talos-serviceaccount.yaml
+  - deployment.yaml
+
+# Home-Assistant-Token (SOPS). Erzeugen/ersetzen mit:  make power-manager-secret
+generators:
+  - ksops-generator.yaml
+
+# Skript + Konfiguration als ConfigMap (mit Hash-Suffix -> Aenderung loest automatisch Rollout aus).
+# test_power_manager.py wird bewusst NICHT eingebunden.
+configMapGenerator:
+  - name: power-manager-script
+    files:
+      - power_manager.py
+  - name: power-manager-config
+    envs:
+      - config.env

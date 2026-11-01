@@ -13,11 +13,15 @@ spec:
         name: kube-vip
     spec:
       hostNetwork: true
+      # Die VIP (192.168.178.100: DNS, HTTP(S), Minecraft) soll IMMER auf dem 24/7-Node liegen.
+      # So gibt es beim Ein-/Ausschalten von nipogi keinen ARP-Failover und keine VIP-Aussetzer.
+      nodeSelector:
+        homelab.lab/role: always-on
       serviceAccountName: kube-vip  
       containers:
         - name: kube-vip
           image: ghcr.io/kube-vip/kube-vip:v0.8.2
-          imagePullPolicy: Always
+          imagePullPolicy: IfNotPresent
           args:
             - manager 
           securityContext:

@@ -1,0 +1,18 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: home-assistant
+
+resources:
+  - namespace.yaml
+  - pvc.yaml
+  - deployment.yaml
+  - service.yaml
+  - certificate-homeassistant.yaml
+  - ingressroute-homeassistant.yaml
+
+# Start-Konfiguration (wird nur beim allerersten Start ins PVC kopiert, danach gehoert die Datei Home Assistant)
+configMapGenerator:
+  - name: home-assistant-defaults
+    files:
+      - configuration.yaml=ha-configuration.yaml

@@ -14,8 +14,30 @@ spec:
     metadata:
       labels:
         app.kubernetes.io/name: minecraft
+        # Markiert den Pod als "Burst-Workload": Der Power-Manager startet nipogi bei hoher
+        # Last (oder wenn dieser Pod nicht schedulbar ist) und verschiebt den Pod dorthin.
+        homelab.lab/workload-class: burst
     spec:
+      # 120s: Server speichert die Welt und beendet sich sauber (SIGTERM -> "stop"),
+      # wichtig beim Herunterfahren von nipogi (Drain).
       terminationGracePeriodSeconds: 120
+      # nipogi ist mit homelab.lab/burst=true:NoSchedule getainted -> Opt-in per Toleration.
+      tolerations:
+        - key: homelab.lab/burst
+          operator: Equal
+          value: "true"
+          effect: NoSchedule
+      affinity:
+        nodeAffinity:
+          # BEVORZUGT nipogi (mehr Leistung). Ist er aus, laeuft Minecraft auf dem HP weiter.
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              preference:
+                matchExpressions:
+                  - key: homelab.lab/role
+                    operator: In
+                    values:
+                      - burst
       containers:
         - name: minecraft
           image: itzg/minecraft-server:latest

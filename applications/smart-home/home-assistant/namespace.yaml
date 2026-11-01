@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: home-assistant
+  labels:
+    # Home Assistant nutzt hostNetwork (Geraete-Erkennung per mDNS/SSDP/Broadcast im LAN).
+    # hostNetwork ist unter "baseline" verboten -> Namespace braucht "privileged".
+    pod-security.kubernetes.io/enforce: privileged

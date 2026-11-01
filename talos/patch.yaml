@@ -1,3 +1,7 @@
+# ============================================================
+# HP260G4 - einziger Control-Plane-Node, laeuft 24/7
+# Zusaetzlich Worker: hier laufen alle dauerhaften Pods.
+# ============================================================
 apiVersion: v1alpha1
 kind: HostnameConfig
 auto: "off"
@@ -24,6 +28,22 @@ machine:
 ---
 apiVersion: v1alpha1
 kind: KubeNodeConfig
+labels:
+  # Dauerhaft laufender Node. Pods, die nur hier laufen duerfen, nutzen diesen Selector.
+  homelab.lab/role: always-on
+  # Longhorn legt Disks NUR auf Nodes mit diesem Label an (nipogi hat keine Storage-Disk,
+  # weil er regelmaessig ausgeschaltet wird).
+  node.longhorn.io/create-default-disk: "true"
 taints:
   node-role.kubernetes.io/control-plane:
     $patch: delete
+---
+# Erlaubt dem Power-Manager (Namespace power-manager), den Burst-Node ueber die
+# Talos-API herunterzufahren. os:operator darf rebooten/herunterfahren, aber die
+# Machine-Config NICHT aendern (least privilege, os:admin ist nicht noetig).
+apiVersion: v1alpha1
+kind: KubeTalosAPIAccessConfig
+allowedRoles:
+  - os:operator
+allowedKubernetesNamespaces:
+  - power-manager

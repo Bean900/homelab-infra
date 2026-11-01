@@ -7,7 +7,6 @@ resources:
   - pvc.yaml
   - statefulset.yaml
   - service.yaml
-  - ingress.yaml
 
 configMapGenerator:
   - name: minecraft-server-icon

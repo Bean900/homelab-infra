@@ -45,3 +45,14 @@ spec:
         syncOptions:
           - CreateNamespace=true
           - ServerSideApply=true
+          # CRDs/Resources aus anderen Apps (z.B. cert-manager, Traefik, Talos-ServiceAccount)
+          # existieren beim ersten Sync evtl. noch nicht -> kein Dry-Run-Fehler
+          - SkipDryRunOnMissingResource=true
+        # Ohne retry versucht ArgoCD einen fehlgeschlagenen Auto-Sync fuer denselben Commit
+        # NICHT erneut. Beim Neu-Deploy (Reihenfolge der Apps ist zufaellig) ist das fatal.
+        retry:
+          limit: 10
+          backoff:
+            duration: 30s
+            factor: 2
+            maxDuration: 10m

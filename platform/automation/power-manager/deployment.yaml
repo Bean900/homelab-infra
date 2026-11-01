@@ -1,0 +1,116 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: power-manager
+  labels:
+    app.kubernetes.io/name: power-manager
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate          # niemals zwei Instanzen gleichzeitig (Doppel-Shutdown vermeiden)
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: power-manager
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: power-manager
+    spec:
+      serviceAccountName: power-manager
+      # Steuert den Burst-Node -> muss selbst auf dem 24/7-Node laufen.
+      nodeSelector:
+        homelab.lab/role: always-on
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        runAsGroup: 65534
+        seccompProfile:
+          type: RuntimeDefault
+      initContainers:
+        # Laedt talosctl (statisches Binary) inkl. SHA256-Pruefung. Version = Cluster-Version (makefile: TALOS_VERSION).
+        - name: fetch-talosctl
+          image: curlimages/curl:8.11.1
+          command:
+            - sh
+            - -ec
+            - |
+              cd /opt/bin
+              BASE="https://github.com/siderolabs/talos/releases/download/v1.14.1"
+              curl -fsSL --retry 5 --retry-delay 5 -o talosctl "$BASE/talosctl-linux-amd64"
+              curl -fsSL --retry 5 --retry-delay 5 -o sha256sum.txt "$BASE/sha256sum.txt"
+              EXPECTED="$(grep 'talosctl-linux-amd64$' sha256sum.txt | awk '{print $1}' | head -n1)"
+              [ -n "$EXPECTED" ] || { echo "kein Hash fuer talosctl-linux-amd64 gefunden"; exit 1; }
+              echo "$EXPECTED  talosctl" | sha256sum -c -
+              chmod 0755 talosctl
+              rm -f sha256sum.txt
+              ./talosctl version --client --short || ./talosctl version --client
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: bin
+              mountPath: /opt/bin
+      containers:
+        - name: power-manager
+          image: python:3.13-alpine
+          command: ["python", "-u", "/app/power_manager.py"]
+          envFrom:
+            - configMapRef:
+                name: power-manager-config
+          env:
+            - name: PYTHONDONTWRITEBYTECODE
+              value: "1"
+            - name: HA_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: power-manager-ha
+                  key: HA_TOKEN
+                  optional: true      # ohne Token laeuft der Manager im DRY-RUN
+          resources:
+            requests:
+              cpu: 20m
+              memory: 48Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          # Der Manager schreibt waehrend jeder Operation (auch Drain/Shutdown) einen Heartbeat.
+          livenessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - 'test $(( $(date +%s) - $(cat /tmp/heartbeat) )) -lt 300'
+            initialDelaySeconds: 60
+            periodSeconds: 60
+            failureThreshold: 3
+          volumeMounts:
+            - name: app
+              mountPath: /app
+              readOnly: true
+            - name: bin
+              mountPath: /opt/bin
+              readOnly: true
+            - name: talos
+              mountPath: /var/run/secrets/talos.dev
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: app
+          configMap:
+            name: power-manager-script
+        - name: bin
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}
+        - name: talos
+          secret:
+            secretName: power-manager-talos
