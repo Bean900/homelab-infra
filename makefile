@@ -10,7 +10,7 @@ CONTROL_PLANE_IP ?= 192.168.178.101
 CLUSTER_NAME     ?= homelab
 DISK_NAME        ?= sda
 SCHEMATIC_ID     ?= 654f89bd9b7cc6fc59b0ef86b9eff3068e73154a09492c1b41800782747c84ce
-TALOS_VERSION    ?= v1.14.1
+TALOS_VERSION    ?= v1.14.5
 
 # Zweiter Node (NiPoGi) = reiner WORKER (Burst-Node, wird bei geringer Last ausgeschaltet)
 # Defaults für "make join-worker" / "make setup-node2"
